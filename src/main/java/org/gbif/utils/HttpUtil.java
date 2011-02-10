@@ -1,9 +1,5 @@
 package org.gbif.utils;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
-import com.google.inject.internal.Nullable;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
@@ -25,8 +21,13 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.ClientContext;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
@@ -55,7 +56,6 @@ import java.util.Map;
 /**
  * @author markus
  */
-@Singleton
 public class HttpUtil {
   public class Response {
     private HttpResponse response;
@@ -117,22 +117,41 @@ public class HttpUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtil.class);
   public static final String FORM_URL_ENCODED_CONTENT_TYPE = "application/x-www-form-urlencoded; charset=UTF-8";
-  private DefaultHttpClient client;
-
   private static final String LAST_MODIFIED = "Last-Modified";
-
   private static final String MODIFIED_SINCE = "If-Modified-Since";
 
+  private final DefaultHttpClient client;
   // date format see http://tools.ietf.org/html/rfc2616#section-3.3
   // example:
   // Wed, 21 Jul 2010 22:37:31 GMT
+  // TODO:
   protected static final SimpleDateFormat DATE_FORMAT_RFC2616 = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z",
       Locale.US);
 
-  @Inject
+  public HttpUtil() {
+    super();
+    this.client = newMultithreadedClient();
+  }
+
   public HttpUtil(DefaultHttpClient client) {
     super();
     this.client = client;
+  }
+
+  public static DefaultHttpClient newMultithreadedClient() {
+    HttpParams params = new BasicHttpParams();
+    SchemeRegistry schemeRegistry = new SchemeRegistry();
+    schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+
+    ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+    DefaultHttpClient client = new DefaultHttpClient(cm, params);
+    return client;
+  }
+
+  public static DefaultHttpClient newMultithreadedClientWithPreemptiveAuthentication() {
+    DefaultHttpClient client = newMultithreadedClient();
+    client.addRequestInterceptor(new PreemptiveAuthenticationInterceptor(), 0);
+    return client;
   }
 
   private HttpContext buildContext(String uri, UsernamePasswordCredentials credentials) throws URISyntaxException {
@@ -328,8 +347,7 @@ public class HttpUtil {
     return get(url, null, null);
   }
 
-  public Response get(String url, @Nullable Map<String, String> headers,
-      @Nullable UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public Response get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
     HttpGet get = new HttpGet(url);
     // http header
     if (headers != null) {
@@ -373,14 +391,13 @@ public class HttpUtil {
     return post(uri, null, null, null, encodedEntity);
   }
 
-  public Response post(String uri, HttpParams params, @Nullable Map<String, String> headers,
-      @Nullable UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public Response post(String uri, HttpParams params, Map<String, String> headers, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     return post(uri, params, headers, credentials, null);
   }
 
-  public Response post(String uri, HttpParams params, @Nullable Map<String, String> headers,
-      @Nullable UsernamePasswordCredentials credentials, @Nullable HttpEntity encodedEntity) throws IOException,
-      URISyntaxException {
+  public Response post(String uri, HttpParams params, Map<String, String> headers, UsernamePasswordCredentials credentials, HttpEntity encodedEntity)
+      throws IOException, URISyntaxException {
     HttpPost post = new HttpPost(uri);
     post.setHeader(HTTP.CONTENT_TYPE, FORM_URL_ENCODED_CONTENT_TYPE);
     // if (params != null) {

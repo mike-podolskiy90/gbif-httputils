@@ -21,7 +21,6 @@
     <commons-io.version>1.4</commons-io.version>
     <slf4j.version>1.6.1</slf4j.version>
 	<httpclient.version>4.0.3</httpclient.version>
-	<guice.version>2.0</guice.version>
   </properties>
 
   <scm>
@@ -51,24 +50,6 @@
   </repositories>
 
   <dependencies>
-		<!-- Guice provides the code based (not XML based) injection dependency framework -->
-		<dependency>
-			<groupId>com.google.inject</groupId>
-			<artifactId>guice</artifactId>
-			<version>${guice.version}</version>
-			<exclusions>
-
-				<!-- superceded by guava and causing exceptions under tomcat6 -->
-				<!--
-				java.lang.NoSuchMethodError com.google.common.collect.ImmutableList.copyOf(Ljava/util/Collection;)
-				-->
-				<exclusion>
-					<groupId>com.google.code.google-collections</groupId>
-					<artifactId>google-collect</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		
 		<!-- native java io cannot handle redirects -->
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
