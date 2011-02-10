@@ -1,0 +1,105 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.gbif</groupId>
+    <artifactId>motherpom</artifactId>
+    <version>3</version>
+  </parent>
+
+  <artifactId>gbif-httputils</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>GBIF HttpUtils</name>
+  <description>Library of common HTTP utilities</description>
+  <url>http://sites.gbif.org/common-resources/gbif-httputils</url>
+  
+  <properties>
+  <!--  <jdkLevel>1.5</jdkLevel>
+    <junit.version>4.8.1</junit.version>
+    <commons-compress.version>1.0</commons-compress.version>
+    <commons-lang.version>2.5</commons-lang.version>
+    <commons-io.version>1.4</commons-io.version>
+    <guava.version>r07</guava.version>-->
+    <slf4j.version>1.6.1</slf4j.version>
+  </properties>
+
+  <scm>
+    <connection>scm:svn:http://gbif-common-resources.googlecode.com/svn/gbif-httputils/trunk</connection>
+    <developerConnection>scm:svn:https://gbif-common-resources.googlecode.com/svn/gbif-httputils/trunk</developerConnection>
+    <url>http://code.google.com/p/gbif-common-resources/source/browse/#svn/gbif-httputils/trunk</url>
+  </scm>
+
+  <issueManagement>
+    <system>Google Code</system>
+    <url>http://code.google.com/p/gbif-common-resources/issues/list</url>
+  </issueManagement>
+
+  <distributionManagement>
+    <site>
+      <id>gbif-site</id>
+      <name>Site for the common-demo project</name>
+      <url>scp://tools.gbif.org:/var/www/html/sites/common-resources/gbif-httputils</url>
+    </site>
+  </distributionManagement>
+
+  <repositories>
+    <repository>
+      <id>gbif-all</id>
+      <url>http://repository.gbif.org/content/groups/gbif</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+		<!-- Guice provides the code based (not XML based) injection dependency framework -->
+		<dependency>
+			<groupId>com.google.inject</groupId>
+			<artifactId>guice</artifactId>
+			<version>2.0</version>
+			<exclusions>
+
+				<!-- superceded by guava and causing exceptions under tomcat6 -->
+				<!--
+				java.lang.NoSuchMethodError com.google.common.collect.ImmutableList.copyOf(Ljava/util/Collection;)
+				-->
+				<exclusion>
+					<groupId>com.google.code.google-collections</groupId>
+					<artifactId>google-collect</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		
+		<!-- native java io cannot handle redirects -->
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.0.3</version>
+		</dependency>
+		
+		<!-- file utils -->
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>1.4</version>
+		</dependency>
+		
+		<!-- Commons lang provides utilities for (e.g.) simple hashcode building -->
+		<dependency>
+			<groupId>commons-lang</groupId>
+			<artifactId>commons-lang</artifactId>
+			<version>2.5</version>
+		</dependency>
+		
+		 <!-- Logging -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
+  </dependencies>
+  
+  
+
+</project>
