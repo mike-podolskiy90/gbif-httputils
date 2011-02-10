@@ -17,13 +17,12 @@
   <url>http://sites.gbif.org/common-resources/gbif-httputils</url>
   
   <properties>
-  <!--  <jdkLevel>1.5</jdkLevel>
     <junit.version>4.8.1</junit.version>
-    <commons-compress.version>1.0</commons-compress.version>
     <commons-lang.version>2.5</commons-lang.version>
     <commons-io.version>1.4</commons-io.version>
-    <guava.version>r07</guava.version>-->
     <slf4j.version>1.6.1</slf4j.version>
+	<httpclient.version>4.0.3</httpclient.version>
+	<guice.version>2.0</guice.version>
   </properties>
 
   <scm>
@@ -57,7 +56,7 @@
 		<dependency>
 			<groupId>com.google.inject</groupId>
 			<artifactId>guice</artifactId>
-			<version>2.0</version>
+			<version>${guice.version}</version>
 			<exclusions>
 
 				<!-- superceded by guava and causing exceptions under tomcat6 -->
@@ -75,22 +74,30 @@
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
-			<version>4.0.3</version>
+			<version>${httpclient.version}</version>
 		</dependency>
 		
 		<!-- file utils -->
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>
-			<version>1.4</version>
+			<version>${commons-io.version}</version>
 		</dependency>
 		
 		<!-- Commons lang provides utilities for (e.g.) simple hashcode building -->
 		<dependency>
 			<groupId>commons-lang</groupId>
 			<artifactId>commons-lang</artifactId>
-			<version>2.5</version>
+			<version>${commons-lang.version}</version>
 		</dependency>
+		
+		<!-- testing -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>  
 		
 		 <!-- Logging -->
     <dependency>
@@ -99,7 +106,5 @@
       <version>${slf4j.version}</version>
     </dependency>
   </dependencies>
-  
-  
 
 </project>
