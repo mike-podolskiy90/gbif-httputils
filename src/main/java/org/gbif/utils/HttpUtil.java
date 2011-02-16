@@ -43,6 +43,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -195,6 +196,14 @@ public class HttpUtil {
       entity.consumeContent();
     }
     return result;
+  }
+
+  public void download(String uri, File target) throws MalformedURLException, IOException {
+    download(new URL(uri), target);
+  }
+
+  public void download(URI url, File target) throws IOException {
+    download(url.toURL(), target);
   }
 
   public void download(URL url, File downloadTo) throws IOException {
@@ -449,5 +458,4 @@ public class HttpUtil {
     }
     return false;
   }
-
 }
