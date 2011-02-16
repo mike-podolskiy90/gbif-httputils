@@ -280,7 +280,10 @@ public class HttpUtil {
       if (entity != null) {
 
         try {
-          serverModified = DATE_FORMAT_RFC2616.parse(response.getFirstHeader(LAST_MODIFIED).getValue());
+          Header modHeader = response.getFirstHeader(LAST_MODIFIED);
+          if (modHeader != null) {
+            serverModified = DATE_FORMAT_RFC2616.parse(modHeader.getValue());
+          }
         } catch (ParseException e) {
           LOG.debug("Cant parse http header Last-Modified date");
         }
