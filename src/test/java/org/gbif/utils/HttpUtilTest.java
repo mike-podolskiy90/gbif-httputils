@@ -31,4 +31,10 @@ public class HttpUtilTest {
     downloaded = util.downloadIfChanged(url, current, tmp);
     assertFalse(downloaded);
   }
+
+  @Test
+  public void testMultithreadedCommonsLogDependency() throws ParseException, IOException {
+    HttpUtil util = new HttpUtil(HttpUtil.newMultithreadedClient());
+  }
+
 }
