@@ -1,7 +1,6 @@
 package org.gbif.utils;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.DateFormatUtils;
 import org.apache.http.Header;
@@ -39,10 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.Writer;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -226,10 +224,9 @@ public class HttpUtil {
     if (entity != null) {
       // copy stream to local file
       FileUtils.forceMkdir(downloadTo.getParentFile());
-      Writer writer = new FileWriter(downloadTo);
-      InputStream is = entity.getContent();
-      IOUtils.copy(is, writer);
-      writer.close();
+      OutputStream fos = new FileOutputStream(downloadTo, false);
+      entity.writeTo(fos);
+      fos.close();
     }
 
     // close http connection
@@ -301,10 +298,9 @@ public class HttpUtil {
 
         // copy stream to local file
         FileUtils.forceMkdir(downloadTo.getParentFile());
-        Writer writer = new FileWriter(downloadTo);
-        InputStream is = entity.getContent();
-        IOUtils.copy(is, writer);
-        writer.close();
+        OutputStream fos = new FileOutputStream(downloadTo, false);
+        entity.writeTo(fos);
+        fos.close();
         downloaded = true;
         // update last modified of file with http header date from server
         if (serverModified != null) {
