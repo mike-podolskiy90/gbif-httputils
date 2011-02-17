@@ -5,6 +5,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +18,22 @@ import java.util.Date;
  * @author markus
  */
 public class HttpUtilTest {
+  private Logger log = LoggerFactory.getLogger(this.getClass());
+
+  @Test
+  public void testBinaryDownload() throws ParseException, IOException {
+    HttpUtil util = new HttpUtil(HttpUtil.newMultithreadedClient());
+    URL url = new URL("http://www.cate-araceae.org/checklist.zip");
+    File tmp = File.createTempFile("dwca", ".zip");
+    System.out.println("Downloading zip file to " + tmp.getAbsolutePath());
+    boolean downloaded = util.downloadIfChanged(url, null, tmp);
+    assertTrue(downloaded);
+
+    File tmp2 = File.createTempFile("resource.do", "test2");
+    System.out.println("Downloading zip file to " + tmp2.getAbsolutePath());
+    util.download("http://84.40.80.89:8080/ipt/resource.do?r=test2", tmp2);
+  }
+
   @Test
   public void testConditionalGet() throws ParseException, IOException {
     DefaultHttpClient client = new DefaultHttpClient();
