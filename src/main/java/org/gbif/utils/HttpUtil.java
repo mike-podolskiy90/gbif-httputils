@@ -198,12 +198,23 @@ public class HttpUtil {
     return result;
   }
 
-  public void download(String uri, File target) throws MalformedURLException, IOException {
-    download(new URL(uri), target);
+  public void download(String uri, File downloadTo) throws MalformedURLException, IOException {
+    download(new URL(uri), downloadTo);
   }
 
-  public void download(URI url, File target) throws IOException {
-    download(url.toURL(), target);
+  public void download(URI url, File downloadTo) throws IOException {
+    download(url.toURL(), downloadTo);
+  }
+
+  public String download(URL url) throws IOException {
+    try {
+      Response resp = get(url.toString());
+      return resp.content;
+    } catch (URISyntaxException e) {
+      // comes from a URL instance - cant be wrong
+      LOG.error("Exception thrown", e);
+    }
+    return null;
   }
 
   public void download(URL url, File downloadTo) throws IOException {
