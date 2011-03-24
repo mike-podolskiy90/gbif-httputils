@@ -123,7 +123,6 @@ public class HttpUtil {
   // date format see http://tools.ietf.org/html/rfc2616#section-3.3
   // example:
   // Wed, 21 Jul 2010 22:37:31 GMT
-  // TODO:
   protected static final SimpleDateFormat DATE_FORMAT_RFC2616 = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z",
       Locale.US);
 
