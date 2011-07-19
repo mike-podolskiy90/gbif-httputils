@@ -173,10 +173,9 @@ public class HttpUtil {
 
   /**
    * Executes a generic DELETE request
-   * 
-   * @param uri
-   * @param params
-   * @param authenticate
+   *
+   * @param url
+   * @param credentials
    * @return
    * @throws IOException
    */
@@ -195,12 +194,12 @@ public class HttpUtil {
     return result;
   }
 
-  public void download(String uri, File downloadTo) throws MalformedURLException, IOException {
-    download(new URL(uri), downloadTo);
+  public StatusLine download(String uri, File downloadTo) throws MalformedURLException, IOException {
+    return download(new URL(uri), downloadTo);
   }
 
-  public void download(URI url, File downloadTo) throws IOException {
-    download(url.toURL(), downloadTo);
+  public StatusLine download(URI url, File downloadTo) throws IOException {
+    return download(url.toURL(), downloadTo);
   }
 
   public String download(URL url) throws IOException {
@@ -214,7 +213,8 @@ public class HttpUtil {
     return null;
   }
 
-  public void download(URL url, File downloadTo) throws IOException {
+  public StatusLine download(URL url, File downloadTo) throws IOException {
+
     HttpGet get = new HttpGet(url.toString());
 
     // execute
@@ -228,10 +228,8 @@ public class HttpUtil {
       fos.close();
     }
 
-    // close http connection
-    entity.consumeContent();
-
     LOG.debug("Successfully downloaded " + url + " to " + downloadTo.getAbsolutePath());
+    return response.getStatusLine();
   }
 
   /**
@@ -260,7 +258,7 @@ public class HttpUtil {
   /**
    * Downloads a url to a file if its modified since the date given.
    * Updates the last modified file property to reflect the last servers modified http header.
-   * 
+   *
    * @param url
    * @param lastModified
    * @param downloadTo file to download to
@@ -319,7 +317,7 @@ public class HttpUtil {
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * since the last download
-   * 
+   *
    * @param url
    * @param downloadTo
    * @return
@@ -357,7 +355,6 @@ public class HttpUtil {
   /**
    * @param url
    * @return
-   * @throws JSONException if no proper json was returned
    * @throws IOException in case of a problem or the connection was aborted
    * @throws URISyntaxException
    */
@@ -397,10 +394,9 @@ public class HttpUtil {
 
   /**
    * Executes a generic POST request
-   * 
+   *
    * @param uri
-   * @param params
-   * @param authenticate
+   * @param encodedEntity
    * @return
    * @throws URISyntaxException
    * @throws IOException
@@ -443,8 +439,8 @@ public class HttpUtil {
 
   /**
    * Whether a request has succedded, i.e.: 200 response code
-   * 
-   * @param method
+   *
+   * @param resp
    * @return
    */
   public boolean success(Response resp) {
