@@ -1,8 +1,10 @@
 package org.gbif.utils;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.http.StatusLine;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -39,6 +41,22 @@ public class HttpUtilTest {
   @Test
   public void testMultithreadedCommonsLogDependency() throws ParseException, IOException {
     HttpUtil util = new HttpUtil(HttpUtil.newMultithreadedClient());
+  }
+
+  @Test
+  public void testClientRedirect() throws ParseException, IOException {
+    HttpUtil util = new HttpUtil(new DefaultHttpClient());
+    File tmp = File.createTempFile("httputils", "test");
+    tmp.deleteOnExit();
+    // a redirect to http://rs.gbif.org/extension/gbif/1.0/distribution.xml
+    StatusLine status = util.download("http://rs.gbif.org/terms/1.0/Distribution",tmp);
+    assertTrue(HttpUtil.success(status));
+
+    // assert false non 404s
+    status = util.download("http://rs.gbif.org/hoppladi/hopplaho/hallodrian/tim/is/back.txt", tmp);
+    assertFalse(HttpUtil.success(status));
+    assertEquals(404, status.getStatusCode());
+
   }
 
 }

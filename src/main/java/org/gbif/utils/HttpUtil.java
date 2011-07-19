@@ -443,8 +443,15 @@ public class HttpUtil {
    * @param resp
    * @return
    */
-  public boolean success(Response resp) {
-    if (resp.getStatusLine().getStatusCode() >= 200 && resp.getStatusLine().getStatusCode() < 300) {
+  public static boolean success(Response resp) {
+    if (resp==null) {
+      return false;
+    }
+    return success(resp.getStatusLine());
+  }
+
+  public static boolean success(StatusLine status) {
+    if (status !=null && status.getStatusCode() >= 200 && status.getStatusCode() < 300) {
       return true;
     }
     return false;
