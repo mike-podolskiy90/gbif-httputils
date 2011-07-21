@@ -63,6 +63,7 @@ import java.util.Map;
  * @author markus
  */
 public class HttpUtil {
+
   public class Response {
     private HttpResponse response;
     public String content;
@@ -125,6 +126,7 @@ public class HttpUtil {
   public static final String FORM_URL_ENCODED_CONTENT_TYPE = "application/x-www-form-urlencoded; charset=UTF-8";
   private static final String LAST_MODIFIED = "Last-Modified";
   private static final String MODIFIED_SINCE = "If-Modified-Since";
+  private static final int HTTP_PORT = 80;
 
   private final DefaultHttpClient client;
   // date format see http://tools.ietf.org/html/rfc2616#section-3.3
@@ -146,9 +148,9 @@ public class HttpUtil {
   public static DefaultHttpClient newMultithreadedClient() {
     HttpParams params = new BasicHttpParams();
     SchemeRegistry schemeRegistry = new SchemeRegistry();
-    schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+    schemeRegistry.register(new Scheme("http", HTTP_PORT, PlainSocketFactory.getSocketFactory()));
 
-    ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+    ClientConnectionManager cm = new ThreadSafeClientConnManager(schemeRegistry);
     DefaultHttpClient client = new DefaultHttpClient(cm, params);
     return client;
   }
@@ -196,7 +198,7 @@ public class HttpUtil {
     HttpEntity entity = response.getEntity();
     if (entity != null) {
       result.content = EntityUtils.toString(entity);
-      entity.consumeContent();
+      EntityUtils.consume(entity);
     }
     return result;
   }
@@ -313,7 +315,7 @@ public class HttpUtil {
       }
 
       // close http connection
-      entity.consumeContent();
+      EntityUtils.consume(entity);
 
       LOG.debug("Successfully downloaded " + url + " to " + downloadTo.getAbsolutePath());
     }
@@ -386,7 +388,7 @@ public class HttpUtil {
     if (entity != null) {
       // Adding a default charset in case it is not found
       result.content = EntityUtils.toString(entity, HTTP.UTF_8);
-      entity.consumeContent();
+      EntityUtils.consume(entity);
     }
     return result;
   }
@@ -437,7 +439,7 @@ public class HttpUtil {
       HttpEntity entity = response.getEntity();
       if (entity != null) {
         result.content = EntityUtils.toString(entity);
-        entity.consumeContent();
+        EntityUtils.consume(entity);
       }
       return result;
     }
@@ -531,7 +533,7 @@ public class HttpUtil {
     if (entity != null) {
       try {
         content = EntityUtils.toString(entity);
-        entity.consumeContent();
+        EntityUtils.consume(entity);
       } catch (org.apache.http.ParseException e) {
         LOG.error("ParseException consuming http response into string", e);
       } catch (IOException e) {
