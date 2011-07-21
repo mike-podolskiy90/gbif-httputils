@@ -13,6 +13,10 @@ import org.apache.commons.lang.StringUtils;
  */
 public class UrlUtils {
 
+  // hide constructor for utility classes
+  private UrlUtils(){
+
+  }
   /*
     method to escape whitespace for complete Url strings as
     httpclient has removed the convenient org.apache.commons.httpclient.util.URIUtil class in its 4.x version
