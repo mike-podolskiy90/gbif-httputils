@@ -39,6 +39,24 @@ public class HttpUtilTest {
   }
 
   @Test
+  public void testIptConditionalGet() throws ParseException, IOException {
+    DefaultHttpClient client = new DefaultHttpClient();
+    HttpUtil util = new HttpUtil(client);
+    // 2010-08-30
+    Date last = HttpUtil.DATE_FORMAT_RFC2616.parse("Wed, 03 Aug 2009 22:37:31 GMT");
+    Date current = HttpUtil.DATE_FORMAT_RFC2616.parse("Sat, 04 June 2011 8:14:57 GMT");
+    //current = new Date();
+
+    File tmp = File.createTempFile("dwca", ".zip");
+    URL url = new URL("http://ipt.gbif.org/archive.do?r=masswildlifetim");
+    boolean downloaded = util.downloadIfChanged(url, last, tmp);
+    assertTrue(downloaded);
+
+    downloaded = util.downloadIfChanged(url, current, tmp);
+    assertFalse(downloaded);
+  }
+
+  @Test
   public void testMultithreadedCommonsLogDependency() throws ParseException, IOException {
     HttpUtil util = new HttpUtil(HttpUtil.newMultithreadedClient());
   }
