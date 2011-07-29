@@ -268,13 +268,34 @@ public class HttpUtil {
    * Downloads a url to a file if its modified since the date given.
    * Updates the last modified file property to reflect the last servers modified http header.
    *
+   * @Deprecated use downloadIfModifiedSince instead
+   *
    * @param url
    * @param lastModified
    * @param downloadTo file to download to
    * @return true if changed or false if unmodified since lastModified
    * @throws IOException
    */
+
   public boolean downloadIfChanged(URL url, Date lastModified, File downloadTo) throws IOException {
+    StatusLine status = downloadIfModifiedSince(url, lastModified, downloadTo);
+    if (success(status)){
+      return true;
+    }
+    return false;
+  }
+
+    /**
+     * Downloads a url to a file if its modified since the date given.
+     * Updates the last modified file property to reflect the last servers modified http header.
+     *
+     * @param url
+     * @param lastModified
+     * @param downloadTo file to download to
+     * @return true if changed or false if unmodified since lastModified
+     * @throws IOException
+     */
+  public StatusLine downloadIfModifiedSince(URL url, Date lastModified, File downloadTo) throws IOException {
     HttpGet get = new HttpGet(url.toString());
 
     // prepare conditional GET request headers
@@ -284,9 +305,9 @@ public class HttpUtil {
     }
 
     // execute
-    boolean downloaded = false;
     HttpResponse response = client.execute(get);
-    if (response.getStatusLine().getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
+    StatusLine status = response.getStatusLine();
+    if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
       LOG.debug("Content not modified since last request");
     } else {
       Date serverModified = null;
@@ -307,7 +328,6 @@ public class HttpUtil {
         OutputStream fos = new FileOutputStream(downloadTo, false);
         entity.writeTo(fos);
         fos.close();
-        downloaded = true;
         // update last modified of file with http header date from server
         if (serverModified != null) {
           downloadTo.setLastModified(serverModified.getTime());
@@ -320,24 +340,38 @@ public class HttpUtil {
       LOG.debug("Successfully downloaded " + url + " to " + downloadTo.getAbsolutePath());
     }
 
-    return downloaded;
+    return status;
   }
 
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * since the last download
    *
-   * @param url
-   * @param downloadTo
+   * @Deprecated use downloadIfModifiedSince instead
+   */
+  public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
+    StatusLine status = downloadIfModifiedSince(url, downloadTo);
+    if (success(status)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
+   * on the filesystem since the last download
+   *
+   * @param url url to download
+   * @param downloadTo file to download into and used to get the last modified date from
    * @return
    * @throws IOException
    */
-  public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
+  public StatusLine downloadIfModifiedSince(URL url, File downloadTo) throws IOException {
     Date lastModified = null;
     if (downloadTo.exists()) {
       lastModified = new Date(downloadTo.lastModified());
     }
-    return downloadIfChanged(url, lastModified, downloadTo);
+    return downloadIfModifiedSince(url, lastModified, downloadTo);
   }
 
   public HttpResponse executeGetWithTimeout(HttpGet get, int timeout) throws ClientProtocolException, IOException {

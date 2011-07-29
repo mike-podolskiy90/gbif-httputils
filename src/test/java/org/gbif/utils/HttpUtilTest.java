@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.http.StatusLine;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,12 @@ public class HttpUtilTest {
     assertFalse(downloaded);
   }
 
+  /**
+   * Testing if the IPT dwca file serving respects the is-modified-since.
+   * Ignoring this test as its only a manual one to run to check the IPT!
+   */
   @Test
+  @Ignore
   public void testIptConditionalGet() throws ParseException, IOException {
     DefaultHttpClient client = new DefaultHttpClient();
     HttpUtil util = new HttpUtil(client);
