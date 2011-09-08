@@ -1,12 +1,12 @@
 /***************************************************************************
  * Copyright 2010 Global Biodiversity Information Facility Secretariat
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -15,6 +15,8 @@
  ***************************************************************************/
 
 package org.gbif.utils;
+
+import java.io.IOException;
 
 import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
@@ -31,20 +33,18 @@ import org.apache.http.protocol.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 /**
  * @author markus
- * 
  */
 public class PreemptiveAuthenticationInterceptor implements HttpRequestInterceptor {
-  private Logger log = LoggerFactory.getLogger(this.getClass());
+
+  private static final Logger LOG = LoggerFactory.getLogger(PreemptiveAuthenticationInterceptor.class);
 
   // registry currently requires Preemptive authentication
   // add preemptive authentication via this interceptor
 
   public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
-    log.debug(request.getRequestLine().toString());
+    LOG.debug(request.getRequestLine().toString());
 
     AuthState authState = (AuthState) context.getAttribute(ClientContext.TARGET_AUTH_STATE);
     CredentialsProvider credsProvider = (CredentialsProvider) context.getAttribute(ClientContext.CREDS_PROVIDER);
@@ -57,7 +57,7 @@ public class PreemptiveAuthenticationInterceptor implements HttpRequestIntercept
       Credentials creds = credsProvider.getCredentials(authScope);
       // If found, generate BasicScheme preemptively
       if (creds != null) {
-        log.debug("Authentication used for scope " + authScope.getHost());
+        LOG.debug("Authentication used for scope " + authScope.getHost());
         authState.setAuthScheme(new BasicScheme());
         authState.setCredentials(creds);
       }

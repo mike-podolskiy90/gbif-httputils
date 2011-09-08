@@ -1,5 +1,22 @@
 package org.gbif.utils;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
@@ -41,31 +58,16 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
 /**
- * @author markus
+ * A utility class for HTTP related functions.
+ * <p/>
+ * This class is not generally thread safe.
  */
 public class HttpUtil {
 
-  public class Response {
-    private HttpResponse response;
+  public static class Response {
+
+    private final HttpResponse response;
     public String content;
 
     public Response(HttpResponse resp) {
@@ -132,16 +134,15 @@ public class HttpUtil {
   // date format see http://tools.ietf.org/html/rfc2616#section-3.3
   // example:
   // Wed, 21 Jul 2010 22:37:31 GMT
-  protected static final SimpleDateFormat DATE_FORMAT_RFC2616 = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z",
-      Locale.US);
+  // TODO: Not thread-safe!
+  static final SimpleDateFormat DATE_FORMAT_RFC2616 =
+    new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
 
   public HttpUtil() {
-    super();
     this.client = newMultithreadedClient();
   }
 
   public HttpUtil(DefaultHttpClient client) {
-    super();
     this.client = client;
   }
 
@@ -151,8 +152,7 @@ public class HttpUtil {
     schemeRegistry.register(new Scheme("http", HTTP_PORT, PlainSocketFactory.getSocketFactory()));
 
     ClientConnectionManager cm = new ThreadSafeClientConnManager(schemeRegistry);
-    DefaultHttpClient client = new DefaultHttpClient(cm, params);
-    return client;
+    return new DefaultHttpClient(cm, params);
   }
 
   public static DefaultHttpClient newMultithreadedClientWithPreemptiveAuthentication() {
@@ -182,14 +182,9 @@ public class HttpUtil {
 
   /**
    * Executes a generic DELETE request
-   *
-   * @param url
-   * @param credentials
-   * @return
-   * @throws IOException
    */
   public Response delete(String url, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
-    LOG.info("Http delete to " + url);
+    LOG.info("Http delete to {}", url);
     HttpDelete delete = new HttpDelete(url);
     HttpContext authContext = buildContext(url, credentials);
     // HttpGet get = new HttpGet(url);
@@ -203,27 +198,18 @@ public class HttpUtil {
     return result;
   }
 
-  public StatusLine download(String uri, File downloadTo) throws MalformedURLException, IOException {
-    return download(new URL(uri), downloadTo);
+  /**
+   * Downloads something via HTTP GET to the provided file
+   */
+  public StatusLine download(String url, File downloadTo) throws IOException {
+    return download(new URL(url), downloadTo);
   }
 
   public StatusLine download(URI url, File downloadTo) throws IOException {
     return download(url.toURL(), downloadTo);
   }
 
-  public String download(URL url) throws IOException {
-    try {
-      Response resp = get(url.toString());
-      return resp.content;
-    } catch (URISyntaxException e) {
-      // comes from a URL instance - cant be wrong
-      LOG.error("Exception thrown", e);
-    }
-    return null;
-  }
-
   public StatusLine download(URL url, File downloadTo) throws IOException {
-
     HttpGet get = new HttpGet(url.toString());
 
     // execute
@@ -233,22 +219,43 @@ public class HttpUtil {
       // copy stream to local file
       FileUtils.forceMkdir(downloadTo.getParentFile());
       OutputStream fos = new FileOutputStream(downloadTo, false);
-      entity.writeTo(fos);
-      fos.close();
+      try {
+        entity.writeTo(fos);
+      } finally {
+        fos.close();
+      }
     }
 
-    LOG.debug("Successfully downloaded " + url + " to " + downloadTo.getAbsolutePath());
+    LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
     return response.getStatusLine();
   }
 
+
+  public String download(String url) {
+    return null;
+  }
+
+  public String download(URI uri) {
+    return null;
+  }
+
+  public String download(URL url) throws IOException {
+    try {
+      Response resp = get(url.toString());
+
+      return resp.content;
+    } catch (URISyntaxException e) {
+      // comes from a URL instance - cant be wrong
+      LOG.error("Exception thrown", e);
+    }
+    return null;
+  }
+
   /**
-   * @param url
-   * @param lastModified
    * @return body content if changed or null if unmodified since lastModified
-   * @throws IOException
    */
   public String downloadIfChanged(URL url, Date lastModified) throws IOException {
-    Map<String, String> header = new HashMap<String, String>();
+    Map<String, String> header = new HashMap<String, String>(1);
     header.put(MODIFIED_SINCE, DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
 
     try {
@@ -268,40 +275,31 @@ public class HttpUtil {
    * Downloads a url to a file if its modified since the date given.
    * Updates the last modified file property to reflect the last servers modified http header.
    *
-   * @Deprecated use downloadIfModifiedSince instead
-   *
-   * @param url
-   * @param lastModified
    * @param downloadTo file to download to
+   *
    * @return true if changed or false if unmodified since lastModified
-   * @throws IOException
    */
 
   public boolean downloadIfChanged(URL url, Date lastModified, File downloadTo) throws IOException {
     StatusLine status = downloadIfModifiedSince(url, lastModified, downloadTo);
-    if (success(status)){
-      return true;
-    }
-    return false;
+    return success(status);
   }
 
-    /**
-     * Downloads a url to a file if its modified since the date given.
-     * Updates the last modified file property to reflect the last servers modified http header.
-     *
-     * @param url
-     * @param lastModified
-     * @param downloadTo file to download to
-     * @return true if changed or false if unmodified since lastModified
-     * @throws IOException
-     */
+  /**
+   * Downloads a url to a file if its modified since the date given.
+   * Updates the last modified file property to reflect the last servers modified http header.
+   *
+   * @param downloadTo file to download to
+   *
+   * @return true if changed or false if unmodified since lastModified
+   */
   public StatusLine downloadIfModifiedSince(URL url, Date lastModified, File downloadTo) throws IOException {
     HttpGet get = new HttpGet(url.toString());
 
     // prepare conditional GET request headers
     if (lastModified != null) {
       get.addHeader(MODIFIED_SINCE, DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
-      LOG.debug("Conditional GET: " + DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
+      LOG.debug("Conditional GET: {}", DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
     }
 
     // execute
@@ -310,10 +308,10 @@ public class HttpUtil {
     if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
       LOG.debug("Content not modified since last request");
     } else {
-      Date serverModified = null;
       HttpEntity entity = response.getEntity();
       if (entity != null) {
 
+        Date serverModified = null;
         try {
           Header modHeader = response.getFirstHeader(LAST_MODIFIED);
           if (modHeader != null) {
@@ -326,8 +324,11 @@ public class HttpUtil {
         // copy stream to local file
         FileUtils.forceMkdir(downloadTo.getParentFile());
         OutputStream fos = new FileOutputStream(downloadTo, false);
-        entity.writeTo(fos);
-        fos.close();
+        try {
+          entity.writeTo(fos);
+        } finally {
+          fos.close();
+        }
         // update last modified of file with http header date from server
         if (serverModified != null) {
           downloadTo.setLastModified(serverModified.getTime());
@@ -337,7 +338,7 @@ public class HttpUtil {
       // close http connection
       EntityUtils.consume(entity);
 
-      LOG.debug("Successfully downloaded " + url + " to " + downloadTo.getAbsolutePath());
+      LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
     }
 
     return status;
@@ -346,25 +347,18 @@ public class HttpUtil {
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * since the last download
-   *
-   * @Deprecated use downloadIfModifiedSince instead
    */
   public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
     StatusLine status = downloadIfModifiedSince(url, downloadTo);
-    if (success(status)) {
-      return true;
-    }
-    return false;
+    return success(status);
   }
 
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * on the filesystem since the last download
    *
-   * @param url url to download
+   * @param url        url to download
    * @param downloadTo file to download into and used to get the last modified date from
-   * @return
-   * @throws IOException
    */
   public StatusLine downloadIfModifiedSince(URL url, File downloadTo) throws IOException {
     Date lastModified = null;
@@ -396,21 +390,19 @@ public class HttpUtil {
   }
 
   /**
-   * @param url
-   * @return
    * @throws IOException in case of a problem or the connection was aborted
-   * @throws URISyntaxException
    */
   public Response get(String url) throws IOException, URISyntaxException {
     return get(url, null, null);
   }
 
-  public Response get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public Response get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
+    throws IOException, URISyntaxException {
     HttpGet get = new HttpGet(url);
     // http header
     if (headers != null) {
-      for (String name : headers.keySet()) {
-        get.addHeader(StringUtils.trimToEmpty(name), StringUtils.trimToEmpty(headers.get(name)));
+      for (Map.Entry<String, String> header : headers.entrySet()) {
+        get.addHeader(StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
       }
     }
     // authentication
@@ -429,32 +421,26 @@ public class HttpUtil {
 
   public HttpParams params(Map<String, Object> params) {
     HttpParams p = new BasicHttpParams();
-    for (String name : params.keySet()) {
-      p.setParameter(name, params.get(name));
+    for (Map.Entry<String, Object> param : params.entrySet()) {
+      p.setParameter(param.getKey(), param.getValue());
     }
     return p;
   }
 
   /**
    * Executes a generic POST request
-   *
-   * @param uri
-   * @param encodedEntity
-   * @return
-   * @throws URISyntaxException
-   * @throws IOException
    */
   public Response post(String uri, HttpEntity encodedEntity) throws IOException, URISyntaxException {
     return post(uri, null, null, null, encodedEntity);
   }
 
-  public Response post(String uri, HttpParams params, Map<String, String> headers, UsernamePasswordCredentials credentials)
-      throws IOException, URISyntaxException {
+  public Response post(String uri, HttpParams params, Map<String, String> headers,
+    UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
     return post(uri, params, headers, credentials, null);
   }
 
-  public Response post(String uri, HttpParams params, Map<String, String> headers, UsernamePasswordCredentials credentials, HttpEntity encodedEntity)
-      throws IOException, URISyntaxException {
+  public Response post(String uri, HttpParams params, Map<String, String> headers,
+    UsernamePasswordCredentials credentials, HttpEntity encodedEntity) throws IOException, URISyntaxException {
     HttpPost post = new HttpPost(uri);
     post.setHeader(HTTP.CONTENT_TYPE, FORM_URL_ENCODED_CONTENT_TYPE);
     // if (params != null) {
@@ -482,22 +468,13 @@ public class HttpUtil {
 
   /**
    * Whether a request has succedded, i.e.: 200 response code
-   *
-   * @param resp
-   * @return
    */
   public static boolean success(Response resp) {
-    if (resp==null) {
-      return false;
-    }
-    return success(resp.getStatusLine());
+    return resp != null && success(resp.getStatusLine());
   }
 
   public static boolean success(StatusLine status) {
-    if (status !=null && status.getStatusCode() >= 200 && status.getStatusCode() < 300) {
-      return true;
-    }
-    return false;
+    return status != null && status.getStatusCode() >= 200 && status.getStatusCode() < 300;
   }
 
   public boolean verifyHost(HttpHost host) {
@@ -516,9 +493,8 @@ public class HttpUtil {
 
   /**
    * Creates a http entity suitable for POSTs that encodes a single string in utf8
+   *
    * @param data to encode
-   * @return
-   * @throws UnsupportedEncodingException
    */
   public static HttpEntity stringEntity(String data) throws UnsupportedEncodingException {
     return new StringEntity(data, "UTF-8");
@@ -527,12 +503,12 @@ public class HttpUtil {
   /**
    * Creates a url form encoded http entity suitable for POST requests with a single given parameter
    * encoded in utf8
-   * @param key the parameter name
+   *
+   * @param key  the parameter name
    * @param data the value to encode
-   * @return
    */
   public static HttpEntity map2Entity(String key, String data) {
-    List<NameValuePair> formparams = new ArrayList<NameValuePair>();
+    List<NameValuePair> formparams = new ArrayList<NameValuePair>(1);
     formparams.add(new BasicNameValuePair(key, data));
     try {
       return new UrlEncodedFormEntity(formparams, "UTF-8");
@@ -545,13 +521,13 @@ public class HttpUtil {
   /**
    * Creates a url form encoded http entity suitable for POST requests with a single given parameter
    * encoded in utf8
+   *
    * @param kvp the parameter map to encode
-   * @return
    */
   public static HttpEntity map2Entity(Map<String, String> kvp) {
-    List<NameValuePair> formparams = new ArrayList<NameValuePair>();
-    for (String k : kvp.keySet()) {
-      formparams.add(new BasicNameValuePair(k, kvp.get(k)));
+    List<NameValuePair> formparams = new ArrayList<NameValuePair>(kvp.size());
+    for (Map.Entry<String, String> entry : kvp.entrySet()) {
+      formparams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
     }
     try {
       return new UrlEncodedFormEntity(formparams, "UTF-8");
