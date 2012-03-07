@@ -43,6 +43,7 @@ import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -51,6 +52,7 @@ import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
@@ -129,8 +131,87 @@ public class HttpUtil {
   private static final String LAST_MODIFIED = "Last-Modified";
   private static final String MODIFIED_SINCE = "If-Modified-Since";
   private static final int HTTP_PORT = 80;
+  private static final int HTTPS_PORT = 443;
+
+  private static final String HTTP_PROTOCOL = "http";
+
+  private static final String HTTPS_PROTOCOL = "https";
+
+  /**
+   * Creates a url form encoded http entity suitable for POST requests with a single given parameter
+   * encoded in utf8
+   * 
+   * @param kvp the parameter map to encode
+   */
+  public static HttpEntity map2Entity(Map<String, String> kvp) {
+    List<NameValuePair> formparams = new ArrayList<NameValuePair>(kvp.size());
+    for (Map.Entry<String, String> entry : kvp.entrySet()) {
+      formparams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
+    }
+    try {
+      return new UrlEncodedFormEntity(formparams, HTTP.UTF_8);
+    } catch (UnsupportedEncodingException e) {
+      LOG.error("Cant encode post entity with utf8", e);
+    }
+    return null;
+  }
+
+  /**
+   * Creates a url form encoded http entity suitable for POST requests with a single given parameter
+   * encoded in utf8
+   * 
+   * @param key the parameter name
+   * @param data the value to encode
+   */
+  public static HttpEntity map2Entity(String key, String data) {
+    List<NameValuePair> formparams = new ArrayList<NameValuePair>(1);
+    formparams.add(new BasicNameValuePair(key, data));
+    try {
+      return new UrlEncodedFormEntity(formparams, HTTP.UTF_8);
+    } catch (UnsupportedEncodingException e) {
+      LOG.error("Cant encode post entity with utf8", e);
+    }
+    return null;
+  }
+
+  public static String responseAsString(HttpResponse response) {
+    String content = null;
+    HttpEntity entity = response.getEntity();
+    if (entity != null) {
+      try {
+        content = EntityUtils.toString(entity);
+        EntityUtils.consume(entity);
+      } catch (org.apache.http.ParseException e) {
+        LOG.error("ParseException consuming http response into string", e);
+      } catch (IOException e) {
+        LOG.error("IOException consuming http response into string", e);
+      }
+    }
+    return content;
+  }
+
+  /**
+   * Creates a http entity suitable for POSTs that encodes a single string in utf8
+   * 
+   * @param data to encode
+   */
+  public static HttpEntity stringEntity(String data) throws UnsupportedEncodingException {
+    return new StringEntity(data, HTTP.UTF_8);
+  }
+
+  /**
+   * Whether a request has succedded, i.e.: 200 response code
+   */
+  public static boolean success(Response resp) {
+    return resp != null && success(resp.getStatusLine());
+  }
+
+  public static boolean success(StatusLine status) {
+    return status != null && status.getStatusCode() >= 200 && status.getStatusCode() < 300;
+  }
 
   private final DefaultHttpClient client;
+
   // date format see http://tools.ietf.org/html/rfc2616#section-3.3
   // example:
   // Wed, 21 Jul 2010 22:37:31 GMT
@@ -138,19 +219,23 @@ public class HttpUtil {
   static final SimpleDateFormat DATE_FORMAT_RFC2616 =
     new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
 
-  public HttpUtil() {
-    this.client = newMultithreadedClient();
-  }
-
-  public HttpUtil(DefaultHttpClient client) {
-    this.client = client;
-  }
-
   public static DefaultHttpClient newMultithreadedClient() {
     HttpParams params = new BasicHttpParams();
     SchemeRegistry schemeRegistry = new SchemeRegistry();
-    schemeRegistry.register(new Scheme("http", HTTP_PORT, PlainSocketFactory.getSocketFactory()));
+    schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
+    ClientConnectionManager cm = new ThreadSafeClientConnManager(schemeRegistry);
+    return new DefaultHttpClient(cm, params);
+  }
 
+  /**
+   * Return a client that supports "http" and "https" protocols.
+   */
+  public static DefaultHttpClient newMultithreadedClientHttps() {
+    HttpParams params = new BasicHttpParams();
+    params.setParameter(HttpProtocolParams.HTTP_CONTENT_CHARSET, HTTP.UTF_8);
+    SchemeRegistry schemeRegistry = new SchemeRegistry();
+    schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
+    schemeRegistry.register(new Scheme(HTTPS_PROTOCOL, HTTPS_PORT, SSLSocketFactory.getSocketFactory()));
     ClientConnectionManager cm = new ThreadSafeClientConnManager(schemeRegistry);
     return new DefaultHttpClient(cm, params);
   }
@@ -160,6 +245,15 @@ public class HttpUtil {
     client.addRequestInterceptor(new PreemptiveAuthenticationInterceptor(), 0);
     return client;
   }
+
+  public HttpUtil() {
+    this.client = newMultithreadedClient();
+  }
+
+  public HttpUtil(DefaultHttpClient client) {
+    this.client = client;
+  }
+
 
   private HttpContext buildContext(String uri, UsernamePasswordCredentials credentials) throws URISyntaxException {
     HttpContext authContext = new BasicHttpContext();
@@ -198,6 +292,10 @@ public class HttpUtil {
     return result;
   }
 
+  public String download(String url) {
+    return null;
+  }
+
   /**
    * Downloads something via HTTP GET to the provided file
    */
@@ -205,8 +303,24 @@ public class HttpUtil {
     return download(new URL(url), downloadTo);
   }
 
+  public String download(URI uri) {
+    return null;
+  }
+
   public StatusLine download(URI url, File downloadTo) throws IOException {
     return download(url.toURL(), downloadTo);
+  }
+
+  public String download(URL url) throws IOException {
+    try {
+      Response resp = get(url.toString());
+
+      return resp.content;
+    } catch (URISyntaxException e) {
+      // comes from a URL instance - cant be wrong
+      LOG.error("Exception thrown", e);
+    }
+    return null;
   }
 
   public StatusLine download(URL url, File downloadTo) throws IOException {
@@ -228,27 +342,6 @@ public class HttpUtil {
 
     LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
     return response.getStatusLine();
-  }
-
-
-  public String download(String url) {
-    return null;
-  }
-
-  public String download(URI uri) {
-    return null;
-  }
-
-  public String download(URL url) throws IOException {
-    try {
-      Response resp = get(url.toString());
-
-      return resp.content;
-    } catch (URISyntaxException e) {
-      // comes from a URL instance - cant be wrong
-      LOG.error("Exception thrown", e);
-    }
-    return null;
   }
 
   /**
@@ -274,9 +367,8 @@ public class HttpUtil {
   /**
    * Downloads a url to a file if its modified since the date given.
    * Updates the last modified file property to reflect the last servers modified http header.
-   *
+   * 
    * @param downloadTo file to download to
-   *
    * @return true if changed or false if unmodified since lastModified
    */
 
@@ -286,11 +378,19 @@ public class HttpUtil {
   }
 
   /**
+   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
+   * since the last download
+   */
+  public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
+    StatusLine status = downloadIfModifiedSince(url, downloadTo);
+    return success(status);
+  }
+
+  /**
    * Downloads a url to a file if its modified since the date given.
    * Updates the last modified file property to reflect the last servers modified http header.
-   *
+   * 
    * @param downloadTo file to download to
-   *
    * @return true if changed or false if unmodified since lastModified
    */
   public StatusLine downloadIfModifiedSince(URL url, Date lastModified, File downloadTo) throws IOException {
@@ -346,18 +446,9 @@ public class HttpUtil {
 
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
-   * since the last download
-   */
-  public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
-    StatusLine status = downloadIfModifiedSince(url, downloadTo);
-    return success(status);
-  }
-
-  /**
-   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * on the filesystem since the last download
-   *
-   * @param url        url to download
+   * 
+   * @param url url to download
    * @param downloadTo file to download into and used to get the last modified date from
    */
   public StatusLine downloadIfModifiedSince(URL url, File downloadTo) throws IOException {
@@ -466,17 +557,6 @@ public class HttpUtil {
     return null;
   }
 
-  /**
-   * Whether a request has succedded, i.e.: 200 response code
-   */
-  public static boolean success(Response resp) {
-    return resp != null && success(resp.getStatusLine());
-  }
-
-  public static boolean success(StatusLine status) {
-    return status != null && status.getStatusCode() >= 200 && status.getStatusCode() < 300;
-  }
-
   public boolean verifyHost(HttpHost host) {
     if (host != null) {
       try {
@@ -489,67 +569,5 @@ public class HttpUtil {
       }
     }
     return false;
-  }
-
-  /**
-   * Creates a http entity suitable for POSTs that encodes a single string in utf8
-   *
-   * @param data to encode
-   */
-  public static HttpEntity stringEntity(String data) throws UnsupportedEncodingException {
-    return new StringEntity(data, "UTF-8");
-  }
-
-  /**
-   * Creates a url form encoded http entity suitable for POST requests with a single given parameter
-   * encoded in utf8
-   *
-   * @param key  the parameter name
-   * @param data the value to encode
-   */
-  public static HttpEntity map2Entity(String key, String data) {
-    List<NameValuePair> formparams = new ArrayList<NameValuePair>(1);
-    formparams.add(new BasicNameValuePair(key, data));
-    try {
-      return new UrlEncodedFormEntity(formparams, "UTF-8");
-    } catch (UnsupportedEncodingException e) {
-      LOG.error("Cant encode post entity with utf8", e);
-    }
-    return null;
-  }
-
-  /**
-   * Creates a url form encoded http entity suitable for POST requests with a single given parameter
-   * encoded in utf8
-   *
-   * @param kvp the parameter map to encode
-   */
-  public static HttpEntity map2Entity(Map<String, String> kvp) {
-    List<NameValuePair> formparams = new ArrayList<NameValuePair>(kvp.size());
-    for (Map.Entry<String, String> entry : kvp.entrySet()) {
-      formparams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
-    }
-    try {
-      return new UrlEncodedFormEntity(formparams, "UTF-8");
-    } catch (UnsupportedEncodingException e) {
-      LOG.error("Cant encode post entity with utf8", e);
-    }
-    return null;
-  }
-
-  public static String responseAsString(HttpResponse response) {
-    String content = null;
-    HttpEntity entity = response.getEntity();
-    if (entity != null) {
-      try {
-        content = EntityUtils.toString(entity);
-        EntityUtils.consume(entity);
-      } catch (org.apache.http.ParseException e) {
-        LOG.error("ParseException consuming http response into string", e);
-      } catch (IOException e) {
-        LOG.error("IOException consuming http response into string", e);
-      }
-    }
-    return content;
   }
 }
