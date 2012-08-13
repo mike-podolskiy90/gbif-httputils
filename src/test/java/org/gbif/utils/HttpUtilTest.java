@@ -32,7 +32,7 @@ public class HttpUtilTest {
     Date current = HttpUtil.DATE_FORMAT_RFC2616.parse("Sat, 04 June 2011 8:14:57 GMT");
 
     File tmp = File.createTempFile("vocab", ".xml");
-    URL url = new URL("http://rs.gbif.org/vocabulary/gbif/resource_type.xml");
+    URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
     boolean downloaded = util.downloadIfChanged(url, last, tmp);
     assertTrue(downloaded);
 
