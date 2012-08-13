@@ -29,7 +29,7 @@ public class HttpUtilTest {
     DefaultHttpClient client = new DefaultHttpClient();
     HttpUtil util = new HttpUtil(client);
     Date last = HttpUtil.DATE_FORMAT_RFC2616.parse("Wed, 03 Aug 2009 22:37:31 GMT");
-    Date current = HttpUtil.DATE_FORMAT_RFC2616.parse("Sat, 04 June 2011 8:14:57 GMT");
+    Date current = HttpUtil.DATE_FORMAT_RFC2616.parse("Thu, 19 Aug 2011 11:01:00 GMT");
 
     File tmp = File.createTempFile("vocab", ".xml");
     URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
