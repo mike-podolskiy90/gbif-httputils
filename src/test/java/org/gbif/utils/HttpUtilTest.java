@@ -1,5 +1,9 @@
 package org.gbif.utils;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -10,34 +14,29 @@ import org.apache.http.StatusLine;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 /**
  * @author markus
  */
 public class HttpUtilTest {
 
-  private Logger log = LoggerFactory.getLogger(this.getClass());
-
+  /**
+   * Tests that the get of a   
+   */
   @Test
+  @Ignore("http://dev.gbif.org/issues/browse/GBIFCOM-77")
   public void testConditionalGet() throws ParseException, IOException {
     DefaultHttpClient client = new DefaultHttpClient();
     HttpUtil util = new HttpUtil(client);
+    // We know for sure it has changed since this date
     Date last = HttpUtil.DATE_FORMAT_RFC2616.parse("Wed, 03 Aug 2009 22:37:31 GMT");
-    Date current = HttpUtil.DATE_FORMAT_RFC2616.parse("Thu, 19 Aug 2011 11:01:00 GMT");
-
     File tmp = File.createTempFile("vocab", ".xml");
     URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
-    boolean downloaded = util.downloadIfChanged(url, last, tmp);
-    assertTrue(downloaded);
-
-    downloaded = util.downloadIfChanged(url, current, tmp);
-    assertFalse(downloaded);
+    assertTrue(util.downloadIfChanged(url, last, tmp));
+    
+    // Verify that it does not download with a conditional get of "now"
+    // There is a miniscule chance of a race condition here should someone change the rank.xml
+    assertFalse(util.downloadIfChanged(url, new Date(), tmp));
   }
 
   /**
