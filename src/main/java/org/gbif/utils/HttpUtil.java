@@ -67,71 +67,13 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpUtil {
 
+  public static final String FORM_URL_ENCODED_CONTENT_TYPE = "application/x-www-form-urlencoded; charset=UTF-8";
+
   private static final int CONNECTION_TIMEOUT_MSEC = 600000;
   private static final int MAX_CONNECTIONS = 100;
   private static final int MAX_PER_ROUTE = 10;
 
-  public static class Response {
-
-    private final HttpResponse response;
-    public String content;
-
-    public Response(HttpResponse resp) {
-      response = resp;
-    }
-
-    public boolean containsHeader(String name) {
-      return response.containsHeader(name);
-    }
-
-    public Header[] getAllHeaders() {
-      return response.getAllHeaders();
-    }
-
-    public Header getFirstHeader(String name) {
-      return response.getFirstHeader(name);
-    }
-
-    public Header[] getHeaders(String name) {
-      return response.getHeaders(name);
-    }
-
-    public Header getLastHeader(String name) {
-      return response.getLastHeader(name);
-    }
-
-    public Locale getLocale() {
-      return response.getLocale();
-    }
-
-    public HttpParams getParams() {
-      return response.getParams();
-    }
-
-    public ProtocolVersion getProtocolVersion() {
-      return response.getProtocolVersion();
-    }
-
-    public int getStatusCode() {
-      return response.getStatusLine().getStatusCode();
-    }
-
-    public StatusLine getStatusLine() {
-      return response.getStatusLine();
-    }
-
-    public HeaderIterator headerIterator() {
-      return response.headerIterator();
-    }
-
-    public HeaderIterator headerIterator(String name) {
-      return response.headerIterator(name);
-    }
-
-  }
-
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtil.class);
-  public static final String FORM_URL_ENCODED_CONTENT_TYPE = "application/x-www-form-urlencoded; charset=UTF-8";
   private static final String LAST_MODIFIED = "Last-Modified";
   private static final String MODIFIED_SINCE = "If-Modified-Since";
   private static final int HTTP_PORT = 80;
@@ -141,10 +83,18 @@ public class HttpUtil {
 
   private static final String HTTPS_PROTOCOL = "https";
 
+  // date format see http://tools.ietf.org/html/rfc2616#section-3.3
+  // example:
+  // Wed, 21 Jul 2010 22:37:31 GMT
+  // TODO: Not thread-safe!
+  static final SimpleDateFormat DATE_FORMAT_RFC2616 = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
+
+  private final DefaultHttpClient client;
+
   /**
    * Creates a url form encoded http entity suitable for POST requests with a single given parameter
    * encoded in utf8
-   * 
+   *
    * @param kvp the parameter map to encode
    */
   public static HttpEntity map2Entity(Map<String, String> kvp) {
@@ -163,8 +113,8 @@ public class HttpUtil {
   /**
    * Creates a url form encoded http entity suitable for POST requests with a single given parameter
    * encoded in utf8
-   * 
-   * @param key the parameter name
+   *
+   * @param key  the parameter name
    * @param data the value to encode
    */
   public static HttpEntity map2Entity(String key, String data) {
@@ -196,7 +146,7 @@ public class HttpUtil {
 
   /**
    * Creates a http entity suitable for POSTs that encodes a single string in utf8
-   * 
+   *
    * @param data to encode
    */
   public static HttpEntity stringEntity(String data) throws UnsupportedEncodingException {
@@ -213,15 +163,6 @@ public class HttpUtil {
   public static boolean success(StatusLine status) {
     return status != null && status.getStatusCode() >= 200 && status.getStatusCode() < 300;
   }
-
-  private final DefaultHttpClient client;
-
-  // date format see http://tools.ietf.org/html/rfc2616#section-3.3
-  // example:
-  // Wed, 21 Jul 2010 22:37:31 GMT
-  // TODO: Not thread-safe!
-  static final SimpleDateFormat DATE_FORMAT_RFC2616 =
-    new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
 
   /**
    * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
@@ -269,7 +210,8 @@ public class HttpUtil {
   }
 
   /**
-   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you need it because it is very easy to break something by using the wrong setting.
+   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
+   *             need it because it is very easy to break something by using the wrong setting.
    */
   @Deprecated
   public static DefaultHttpClient newMultithreadedClientWithPreemptiveAuthentication() {
@@ -288,22 +230,6 @@ public class HttpUtil {
 
   public HttpUtil(DefaultHttpClient client) {
     this.client = client;
-  }
-
-
-  private HttpContext buildContext(String uri, UsernamePasswordCredentials credentials) throws URISyntaxException {
-    HttpContext authContext = new BasicHttpContext();
-    if (credentials != null) {
-      URI authUri = new URI(uri);
-      AuthScope scope = new AuthScope(authUri.getHost(), AuthScope.ANY_PORT, AuthScope.ANY_REALM);
-
-      CredentialsProvider credsProvider = new BasicCredentialsProvider();
-      credsProvider.setCredentials(scope, credentials);
-
-      authContext.setAttribute(ClientContext.CREDS_PROVIDER, credsProvider);
-    }
-
-    return authContext;
   }
 
   public UsernamePasswordCredentials credentials(String username, String password) {
@@ -328,25 +254,6 @@ public class HttpUtil {
     return result;
   }
 
-  public String download(String url) {
-    return null;
-  }
-
-  /**
-   * Downloads something via HTTP GET to the provided file
-   */
-  public StatusLine download(String url, File downloadTo) throws IOException {
-    return download(new URL(url), downloadTo);
-  }
-
-  public String download(URI uri) {
-    return null;
-  }
-
-  public StatusLine download(URI url, File downloadTo) throws IOException {
-    return download(url.toURL(), downloadTo);
-  }
-
   public String download(URL url) throws IOException {
     try {
       Response resp = get(url.toString());
@@ -357,6 +264,17 @@ public class HttpUtil {
       LOG.error("Exception thrown", e);
     }
     return null;
+  }
+
+  /**
+   * Downloads something via HTTP GET to the provided file
+   */
+  public StatusLine download(String url, File downloadTo) throws IOException {
+    return download(new URL(url), downloadTo);
+  }
+
+  public StatusLine download(URI url, File downloadTo) throws IOException {
+    return download(url.toURL(), downloadTo);
   }
 
   public StatusLine download(URL url, File downloadTo) throws IOException {
@@ -401,19 +319,6 @@ public class HttpUtil {
   }
 
   /**
-   * Downloads a url to a file if its modified since the date given.
-   * Updates the last modified file property to reflect the last servers modified http header.
-   * 
-   * @param downloadTo file to download to
-   * @return true if changed or false if unmodified since lastModified
-   */
-
-  public boolean downloadIfChanged(URL url, Date lastModified, File downloadTo) throws IOException {
-    StatusLine status = downloadIfModifiedSince(url, lastModified, downloadTo);
-    return success(status);
-  }
-
-  /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * since the last download
    */
@@ -425,8 +330,38 @@ public class HttpUtil {
   /**
    * Downloads a url to a file if its modified since the date given.
    * Updates the last modified file property to reflect the last servers modified http header.
-   * 
+   *
    * @param downloadTo file to download to
+   *
+   * @return true if changed or false if unmodified since lastModified
+   */
+
+  public boolean downloadIfChanged(URL url, Date lastModified, File downloadTo) throws IOException {
+    StatusLine status = downloadIfModifiedSince(url, lastModified, downloadTo);
+    return success(status);
+  }
+
+  /**
+   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
+   * on the filesystem since the last download
+   *
+   * @param url        url to download
+   * @param downloadTo file to download into and used to get the last modified date from
+   */
+  public StatusLine downloadIfModifiedSince(URL url, File downloadTo) throws IOException {
+    Date lastModified = null;
+    if (downloadTo.exists()) {
+      lastModified = new Date(downloadTo.lastModified());
+    }
+    return downloadIfModifiedSince(url, lastModified, downloadTo);
+  }
+
+  /**
+   * Downloads a url to a file if its modified since the date given.
+   * Updates the last modified file property to reflect the last servers modified http header.
+   *
+   * @param downloadTo file to download to
+   *
    * @return true if changed or false if unmodified since lastModified
    */
   public StatusLine downloadIfModifiedSince(URL url, Date lastModified, File downloadTo) throws IOException {
@@ -446,7 +381,6 @@ public class HttpUtil {
     } else {
       HttpEntity entity = response.getEntity();
       if (entity != null) {
-
         Date serverModified = null;
         try {
           Header modHeader = response.getFirstHeader(LAST_MODIFIED);
@@ -478,21 +412,6 @@ public class HttpUtil {
     }
 
     return status;
-  }
-
-  /**
-   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
-   * on the filesystem since the last download
-   * 
-   * @param url url to download
-   * @param downloadTo file to download into and used to get the last modified date from
-   */
-  public StatusLine downloadIfModifiedSince(URL url, File downloadTo) throws IOException {
-    Date lastModified = null;
-    if (downloadTo.exists()) {
-      lastModified = new Date(downloadTo.lastModified());
-    }
-    return downloadIfModifiedSince(url, lastModified, downloadTo);
   }
 
   public HttpResponse executeGetWithTimeout(HttpGet get, int timeout) throws ClientProtocolException, IOException {
@@ -561,13 +480,19 @@ public class HttpUtil {
     return post(uri, null, null, null, encodedEntity);
   }
 
-  public Response post(String uri, HttpParams params, Map<String, String> headers,
-    UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public Response post(
+    String uri, HttpParams params, Map<String, String> headers, UsernamePasswordCredentials credentials
+  ) throws IOException, URISyntaxException {
     return post(uri, params, headers, credentials, null);
   }
 
-  public Response post(String uri, HttpParams params, Map<String, String> headers,
-    UsernamePasswordCredentials credentials, HttpEntity encodedEntity) throws IOException, URISyntaxException {
+  public Response post(
+    String uri,
+    HttpParams params,
+    Map<String, String> headers,
+    UsernamePasswordCredentials credentials,
+    HttpEntity encodedEntity
+  ) throws IOException, URISyntaxException {
     HttpPost post = new HttpPost(uri);
     post.setHeader(HTTP.CONTENT_TYPE, FORM_URL_ENCODED_CONTENT_TYPE);
     // if (params != null) {
@@ -593,6 +518,21 @@ public class HttpUtil {
     return null;
   }
 
+  private HttpContext buildContext(String uri, UsernamePasswordCredentials credentials) throws URISyntaxException {
+    HttpContext authContext = new BasicHttpContext();
+    if (credentials != null) {
+      URI authUri = new URI(uri);
+      AuthScope scope = new AuthScope(authUri.getHost(), AuthScope.ANY_PORT, AuthScope.ANY_REALM);
+
+      CredentialsProvider credsProvider = new BasicCredentialsProvider();
+      credsProvider.setCredentials(scope, credentials);
+
+      authContext.setAttribute(ClientContext.CREDS_PROVIDER, credsProvider);
+    }
+
+    return authContext;
+  }
+
   public boolean verifyHost(HttpHost host) {
     if (host != null) {
       try {
@@ -606,4 +546,65 @@ public class HttpUtil {
     }
     return false;
   }
+
+  public static class Response {
+
+    public String content;
+
+    private final HttpResponse response;
+
+    public Response(HttpResponse resp) {
+      response = resp;
+    }
+
+    public boolean containsHeader(String name) {
+      return response.containsHeader(name);
+    }
+
+    public Header[] getAllHeaders() {
+      return response.getAllHeaders();
+    }
+
+    public Header getFirstHeader(String name) {
+      return response.getFirstHeader(name);
+    }
+
+    public Header[] getHeaders(String name) {
+      return response.getHeaders(name);
+    }
+
+    public Header getLastHeader(String name) {
+      return response.getLastHeader(name);
+    }
+
+    public Locale getLocale() {
+      return response.getLocale();
+    }
+
+    public HttpParams getParams() {
+      return response.getParams();
+    }
+
+    public ProtocolVersion getProtocolVersion() {
+      return response.getProtocolVersion();
+    }
+
+    public int getStatusCode() {
+      return response.getStatusLine().getStatusCode();
+    }
+
+    public StatusLine getStatusLine() {
+      return response.getStatusLine();
+    }
+
+    public HeaderIterator headerIterator() {
+      return response.headerIterator();
+    }
+
+    public HeaderIterator headerIterator(String name) {
+      return response.headerIterator(name);
+    }
+
+  }
+
 }
