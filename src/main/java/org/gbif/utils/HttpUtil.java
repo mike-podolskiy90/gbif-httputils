@@ -38,8 +38,8 @@ import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.params.ClientPNames;
 import org.apache.http.client.protocol.ClientContext;
-import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
@@ -47,12 +47,12 @@ import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.CoreProtocolPNames;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.BasicHttpContext;
 import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
@@ -66,6 +66,10 @@ import org.slf4j.LoggerFactory;
  * This class is not generally thread safe.
  */
 public class HttpUtil {
+
+  private static final int CONNECTION_TIMEOUT_MSEC = 600000;
+  private static final int MAX_CONNECTIONS = 100;
+  private static final int MAX_PER_ROUTE = 10;
 
   public static class Response {
 
@@ -219,33 +223,65 @@ public class HttpUtil {
   static final SimpleDateFormat DATE_FORMAT_RFC2616 =
     new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
 
+  /**
+   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
+   *             need it because it is very easy to break something by using the wrong setting.
+   */
+  @Deprecated
   public static DefaultHttpClient newMultithreadedClient() {
     HttpParams params = new BasicHttpParams();
+    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, "UTF-8");
+    HttpConnectionParams.setConnectionTimeout(params, CONNECTION_TIMEOUT_MSEC);
+    HttpConnectionParams.setSoTimeout(params, CONNECTION_TIMEOUT_MSEC);
+    params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, CONNECTION_TIMEOUT_MSEC);
+
     SchemeRegistry schemeRegistry = new SchemeRegistry();
     schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
-    ClientConnectionManager cm = new ThreadSafeClientConnManager(schemeRegistry);
-    return new DefaultHttpClient(cm, params);
+
+    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager(schemeRegistry);
+    connectionManager.setMaxTotal(MAX_CONNECTIONS);
+    connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
+    return new DefaultHttpClient(connectionManager, params);
   }
 
   /**
    * Return a client that supports "http" and "https" protocols.
+   *
+   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
+   *             need it because it is very easy to break something by using the wrong setting.
    */
+  @Deprecated
   public static DefaultHttpClient newMultithreadedClientHttps() {
     HttpParams params = new BasicHttpParams();
-    params.setParameter(HttpProtocolParams.HTTP_CONTENT_CHARSET, HTTP.UTF_8);
+    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, HTTP.UTF_8);
+    HttpConnectionParams.setConnectionTimeout(params, CONNECTION_TIMEOUT_MSEC);
+    HttpConnectionParams.setSoTimeout(params, CONNECTION_TIMEOUT_MSEC);
+    params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, CONNECTION_TIMEOUT_MSEC);
+
     SchemeRegistry schemeRegistry = new SchemeRegistry();
     schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
     schemeRegistry.register(new Scheme(HTTPS_PROTOCOL, HTTPS_PORT, SSLSocketFactory.getSocketFactory()));
-    ClientConnectionManager cm = new ThreadSafeClientConnManager(schemeRegistry);
-    return new DefaultHttpClient(cm, params);
+
+    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager(schemeRegistry);
+    connectionManager.setMaxTotal(MAX_CONNECTIONS);
+    connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
+    return new DefaultHttpClient(connectionManager, params);
   }
 
+  /**
+   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you need it because it is very easy to break something by using the wrong setting.
+   */
+  @Deprecated
   public static DefaultHttpClient newMultithreadedClientWithPreemptiveAuthentication() {
     DefaultHttpClient client = newMultithreadedClient();
     client.addRequestInterceptor(new PreemptiveAuthenticationInterceptor(), 0);
     return client;
   }
 
+  /**
+   * @deprecated use the constructor that takes a Http client.
+   */
+  @Deprecated
   public HttpUtil() {
     this.client = newMultithreadedClient();
   }
