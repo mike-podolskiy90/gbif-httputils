@@ -1,9 +1,5 @@
 package org.gbif.utils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -15,28 +11,33 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.Ignore;
 import org.junit.Test;
 
-/**
- * @author markus
- */
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 public class HttpUtilTest {
 
   /**
-   * Tests that the get of a   
+   * Tests a condition get against an apache http server within GBIF.
+   * If the file being tested against has been changed in the last 24h this test is expected to fail!
+   * @see <a href="http://dev.gbif.org/issues/browse/GBIFCOM-77">GBIFCOM-77</a>
    */
   @Test
-  @Ignore("http://dev.gbif.org/issues/browse/GBIFCOM-77")
   public void testConditionalGet() throws ParseException, IOException {
     DefaultHttpClient client = new DefaultHttpClient();
     HttpUtil util = new HttpUtil(client);
     // We know for sure it has changed since this date
-    Date last = HttpUtil.DATE_FORMAT_RFC2616.parse("Wed, 03 Aug 2009 22:37:31 GMT");
+    Date last = HttpUtil.parseHeaderDate("Wed, 03 Aug 2009 22:37:31 GMT");
     File tmp = File.createTempFile("vocab", ".xml");
     URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
     assertTrue(util.downloadIfChanged(url, last, tmp));
     
-    // Verify that it does not download with a conditional get of "now"
-    // There is a miniscule chance of a race condition here should someone change the rank.xml
-    assertFalse(util.downloadIfChanged(url, new Date(), tmp));
+    // Verify that it does not download with a conditional get of a day before "now"
+    // we dont use now because the apache server on the other side might have a slightly different clock and timezone
+    // configured that might lead to a mismatch.
+    //  If the rank file was modified within the last 24h this test could fail though !!!
+    Date nearlyNow = new Date(System.currentTimeMillis() - 24*1000*60*60);
+    assertFalse(util.downloadIfChanged(url, nearlyNow, tmp));
   }
 
   /**
@@ -49,8 +50,8 @@ public class HttpUtilTest {
     DefaultHttpClient client = new DefaultHttpClient();
     HttpUtil util = new HttpUtil(client);
     // 2010-08-30
-    Date last = HttpUtil.DATE_FORMAT_RFC2616.parse("Wed, 03 Aug 2009 22:37:31 GMT");
-    Date current = HttpUtil.DATE_FORMAT_RFC2616.parse("Sat, 04 June 2011 8:14:57 GMT");
+    Date last = HttpUtil.parseHeaderDate("Wed, 03 Aug 2009 22:37:31 GMT");
+    Date current = HttpUtil.parseHeaderDate("Sat, 04 June 2011 8:14:57 GMT");
     //current = new Date();
 
     File tmp = File.createTempFile("dwca", ".zip");

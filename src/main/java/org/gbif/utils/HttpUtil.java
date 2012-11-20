@@ -375,18 +375,11 @@ public class HttpUtil {
     } else {
       HttpEntity entity = response.getEntity();
       if (entity != null) {
+
         Date serverModified = null;
-        try {
-          Header modHeader = response.getFirstHeader(LAST_MODIFIED);
-          if (modHeader != null) {
-            // date format see http://tools.ietf.org/html/rfc2616#section-3.3
-            // example:
-            // Wed, 21 Jul 2010 22:37:31 GMT
-            // as its not thread safe we create a new instance each time
-            serverModified = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(modHeader.getValue());
-          }
-        } catch (ParseException e) {
-          LOG.debug("Cant parse http header Last-Modified date");
+        Header modHeader = response.getFirstHeader(LAST_MODIFIED);
+        if (modHeader != null) {
+          serverModified = parseHeaderDate(modHeader.getValue());
         }
 
         // copy stream to local file
@@ -410,6 +403,27 @@ public class HttpUtil {
     }
 
     return status;
+  }
+
+  /**
+   * Parses a RFC2616 compliant date string such as used in http headers.
+   * @see <a href="http://tools.ietf.org/html/rfc2616#section-3.3">RFC 2616</a> specification.
+   * example:
+   * Wed, 21 Jul 2010 22:37:31 GMT
+   *
+   * @param rfcDate RFC2616 compliant date string
+   * @return the parsed date or null if it cannot be parsed
+   */
+  public static Date parseHeaderDate(String rfcDate) {
+    try {
+      if (rfcDate != null) {
+        // as its not thread safe we create a new instance each time
+        return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(rfcDate);
+      }
+    } catch (ParseException e) {
+      LOG.debug("Cant parse RFC2616 date");
+    }
+    return null;
   }
 
   public HttpResponse executeGetWithTimeout(HttpGet get, int timeout) throws ClientProtocolException, IOException {
