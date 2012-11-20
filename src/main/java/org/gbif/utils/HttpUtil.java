@@ -83,12 +83,6 @@ public class HttpUtil {
 
   private static final String HTTPS_PROTOCOL = "https";
 
-  // date format see http://tools.ietf.org/html/rfc2616#section-3.3
-  // example:
-  // Wed, 21 Jul 2010 22:37:31 GMT
-  // TODO: Not thread-safe!
-  static final SimpleDateFormat DATE_FORMAT_RFC2616 = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US);
-
   private final DefaultHttpClient client;
 
   /**
@@ -165,53 +159,23 @@ public class HttpUtil {
   }
 
   /**
-   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
-   *             need it because it is very easy to break something by using the wrong setting.
+   * @deprecated use parameterized newMultithreadedClient method
    */
   @Deprecated
   public static DefaultHttpClient newMultithreadedClient() {
-    HttpParams params = new BasicHttpParams();
-    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, "UTF-8");
-    HttpConnectionParams.setConnectionTimeout(params, CONNECTION_TIMEOUT_MSEC);
-    HttpConnectionParams.setSoTimeout(params, CONNECTION_TIMEOUT_MSEC);
-    params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, CONNECTION_TIMEOUT_MSEC);
-
-    SchemeRegistry schemeRegistry = new SchemeRegistry();
-    schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
-
-    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager(schemeRegistry);
-    connectionManager.setMaxTotal(MAX_CONNECTIONS);
-    connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
-    return new DefaultHttpClient(connectionManager, params);
+    return newMultithreadedClient(CONNECTION_TIMEOUT_MSEC, MAX_CONNECTIONS, MAX_PER_ROUTE);
   }
 
   /**
-   * Return a client that supports "http" and "https" protocols.
-   *
-   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
-   *             need it because it is very easy to break something by using the wrong setting.
+   * @deprecated use parameterized newMultithreadedClient method
    */
   @Deprecated
   public static DefaultHttpClient newMultithreadedClientHttps() {
-    HttpParams params = new BasicHttpParams();
-    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, HTTP.UTF_8);
-    HttpConnectionParams.setConnectionTimeout(params, CONNECTION_TIMEOUT_MSEC);
-    HttpConnectionParams.setSoTimeout(params, CONNECTION_TIMEOUT_MSEC);
-    params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, CONNECTION_TIMEOUT_MSEC);
-
-    SchemeRegistry schemeRegistry = new SchemeRegistry();
-    schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
-    schemeRegistry.register(new Scheme(HTTPS_PROTOCOL, HTTPS_PORT, SSLSocketFactory.getSocketFactory()));
-
-    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager(schemeRegistry);
-    connectionManager.setMaxTotal(MAX_CONNECTIONS);
-    connectionManager.setDefaultMaxPerRoute(MAX_PER_ROUTE);
-    return new DefaultHttpClient(connectionManager, params);
+    return newMultithreadedClient();
   }
 
   /**
-   * @deprecated this causes more trouble than it's worth. It's best to just create a new client yourself whenever you
-   *             need it because it is very easy to break something by using the wrong setting.
+   * @deprecated use parameterized newMultithreadedClient method and add interceptor manually
    */
   @Deprecated
   public static DefaultHttpClient newMultithreadedClientWithPreemptiveAuthentication() {
@@ -219,6 +183,33 @@ public class HttpUtil {
     client.addRequestInterceptor(new PreemptiveAuthenticationInterceptor(), 0);
     return client;
   }
+
+  /**
+   * This creates a new threadsafe, multithreaded http client with support for http and https.
+   * Default http client values are partially overriden to use UTF8 as the default charset and an explicit timeout
+   * is required for configuration.
+   * @param timeout in milliseconds
+   * @param maxConnections maximum allowed connections in total
+   * @param maxPerRoute maximum allowed connections per route
+   */
+  public static DefaultHttpClient newMultithreadedClient(int timeout, int maxConnections, int maxPerRoute) {
+    HttpParams params = new BasicHttpParams();
+    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, "UTF-8");
+    HttpConnectionParams.setConnectionTimeout(params, timeout);
+    HttpConnectionParams.setSoTimeout(params, timeout);
+    params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, timeout);
+
+    SchemeRegistry schemeRegistry = new SchemeRegistry();
+    schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
+    schemeRegistry.register(new Scheme(HTTPS_PROTOCOL, HTTPS_PORT, SSLSocketFactory.getSocketFactory()));
+
+    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager(schemeRegistry);
+    connectionManager.setMaxTotal(maxConnections);
+    connectionManager.setDefaultMaxPerRoute(maxPerRoute);
+    return new DefaultHttpClient(connectionManager, params);
+  }
+
+
 
   /**
    * @deprecated use the constructor that takes a Http client.
@@ -232,7 +223,7 @@ public class HttpUtil {
     this.client = client;
   }
 
-  public UsernamePasswordCredentials credentials(String username, String password) {
+  public static UsernamePasswordCredentials credentials(String username, String password) {
     return new UsernamePasswordCredentials(StringUtils.trimToEmpty(username), StringUtils.trimToEmpty(password));
   }
 
@@ -348,7 +339,7 @@ public class HttpUtil {
    * @param url        url to download
    * @param downloadTo file to download into and used to get the last modified date from
    */
-  public StatusLine downloadIfModifiedSince(URL url, File downloadTo) throws IOException {
+  public StatusLine downloadIfModifiedSince(final URL url, final File downloadTo) throws IOException {
     Date lastModified = null;
     if (downloadTo.exists()) {
       lastModified = new Date(downloadTo.lastModified());
@@ -364,18 +355,21 @@ public class HttpUtil {
    *
    * @return true if changed or false if unmodified since lastModified
    */
-  public StatusLine downloadIfModifiedSince(URL url, Date lastModified, File downloadTo) throws IOException {
+  public StatusLine downloadIfModifiedSince(final URL url, final Date lastModified, final File downloadTo)
+    throws IOException {
+
     HttpGet get = new HttpGet(url.toString());
 
     // prepare conditional GET request headers
     if (lastModified != null) {
+      // DateFormatUtils is threadsafe
       get.addHeader(MODIFIED_SINCE, DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
       LOG.debug("Conditional GET: {}", DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
     }
 
     // execute
     HttpResponse response = client.execute(get);
-    StatusLine status = response.getStatusLine();
+    final StatusLine status = response.getStatusLine();
     if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
       LOG.debug("Content not modified since last request");
     } else {
@@ -385,7 +379,11 @@ public class HttpUtil {
         try {
           Header modHeader = response.getFirstHeader(LAST_MODIFIED);
           if (modHeader != null) {
-            serverModified = DATE_FORMAT_RFC2616.parse(modHeader.getValue());
+            // date format see http://tools.ietf.org/html/rfc2616#section-3.3
+            // example:
+            // Wed, 21 Jul 2010 22:37:31 GMT
+            // as its not thread safe we create a new instance each time
+            serverModified = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(modHeader.getValue());
           }
         } catch (ParseException e) {
           LOG.debug("Cant parse http header Last-Modified date");

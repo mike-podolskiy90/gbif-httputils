@@ -34,14 +34,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author markus
+ * registry currently requires Preemptive authentication
+ * add preemptive authentication via this interceptor to a DefaulHttpClient like this:
+ *
+ * client.addRequestInterceptor(new PreemptiveAuthenticationInterceptor(), 0);
+ *
  */
 public class PreemptiveAuthenticationInterceptor implements HttpRequestInterceptor {
 
   private static final Logger LOG = LoggerFactory.getLogger(PreemptiveAuthenticationInterceptor.class);
 
-  // registry currently requires Preemptive authentication
-  // add preemptive authentication via this interceptor
 
   public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
     LOG.debug(request.getRequestLine().toString());
