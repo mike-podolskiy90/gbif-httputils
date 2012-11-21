@@ -63,7 +63,8 @@ import org.slf4j.LoggerFactory;
 /**
  * A utility class for HTTP related functions.
  * <p/>
- * This class is not generally thread safe.
+ * This class itself is thread safe. If you require thread safety please make sure to use a thread safe http client
+ * as the underlying client. The ones created here in the static builder methods or via the default constructor are.
  */
 public class HttpUtil {
 
