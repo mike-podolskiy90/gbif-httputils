@@ -17,9 +17,26 @@ import static org.junit.Assert.assertTrue;
 
 public class HttpUtilTest {
 
+  @Test
+  public void testClientRedirect() throws ParseException, IOException {
+    HttpUtil util = new HttpUtil(new DefaultHttpClient());
+    File tmp = File.createTempFile("httputils", "test");
+    tmp.deleteOnExit();
+    // a redirect to http://rs.gbif.org/extension/gbif/1.0/distribution.xml
+    StatusLine status = util.download("http://rs.gbif.org/terms/1.0/Distribution", tmp);
+    assertTrue(HttpUtil.success(status));
+
+    // assert false non 404s
+    status = util.download("http://rs.gbif.org/hoppladi/hopplaho/hallodrian/tim/is/back.txt", tmp);
+    assertFalse(HttpUtil.success(status));
+    assertEquals(404, status.getStatusCode());
+
+  }
+
   /**
    * Tests a condition get against an apache http server within GBIF.
    * If the file being tested against has been changed in the last 24h this test is expected to fail!
+   * 
    * @see <a href="http://dev.gbif.org/issues/browse/GBIFCOM-77">GBIFCOM-77</a>
    */
   @Test
@@ -31,12 +48,12 @@ public class HttpUtilTest {
     File tmp = File.createTempFile("vocab", ".xml");
     URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
     assertTrue(util.downloadIfChanged(url, last, tmp));
-    
+
     // Verify that it does not download with a conditional get of a day before "now"
     // we dont use now because the apache server on the other side might have a slightly different clock and timezone
     // configured that might lead to a mismatch.
-    //  If the rank file was modified within the last 24h this test could fail though !!!
-    Date nearlyNow = new Date(System.currentTimeMillis() - 24*1000*60*60);
+    // If the rank file was modified within the last 24h this test could fail though !!!
+    Date nearlyNow = new Date(System.currentTimeMillis() - 24 * 1000 * 60 * 60);
     assertFalse(util.downloadIfChanged(url, nearlyNow, tmp));
   }
 
@@ -52,7 +69,7 @@ public class HttpUtilTest {
     // 2010-08-30
     Date last = HttpUtil.parseHeaderDate("Wed, 03 Aug 2009 22:37:31 GMT");
     Date current = HttpUtil.parseHeaderDate("Sat, 04 June 2011 8:14:57 GMT");
-    //current = new Date();
+    // current = new Date();
 
     File tmp = File.createTempFile("dwca", ".zip");
     URL url = new URL("http://ipt.gbif.org/archive.do?r=masswildlifetim");
@@ -65,23 +82,7 @@ public class HttpUtilTest {
 
   @Test
   public void testMultithreadedCommonsLogDependency() throws ParseException, IOException {
-    HttpUtil util = new HttpUtil(HttpUtil.newMultithreadedClient());
-  }
-
-  @Test
-  public void testClientRedirect() throws ParseException, IOException {
-    HttpUtil util = new HttpUtil(new DefaultHttpClient());
-    File tmp = File.createTempFile("httputils", "test");
-    tmp.deleteOnExit();
-    // a redirect to http://rs.gbif.org/extension/gbif/1.0/distribution.xml
-    StatusLine status = util.download("http://rs.gbif.org/terms/1.0/Distribution", tmp);
-    assertTrue(HttpUtil.success(status));
-
-    // assert false non 404s
-    status = util.download("http://rs.gbif.org/hoppladi/hopplaho/hallodrian/tim/is/back.txt", tmp);
-    assertFalse(HttpUtil.success(status));
-    assertEquals(404, status.getStatusCode());
-
+    new HttpUtil(HttpUtil.newMultithreadedClient(10, 10, 10));
   }
 
 }

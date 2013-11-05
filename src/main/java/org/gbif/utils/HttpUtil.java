@@ -68,6 +68,9 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpUtil {
 
+  /**
+   * An {@link HttpResonse} wrapper exposing limited fields.
+   */
   public static class Response {
 
     public String content;
@@ -129,30 +132,15 @@ public class HttpUtil {
   }
 
   public static final String FORM_URL_ENCODED_CONTENT_TYPE = "application/x-www-form-urlencoded; charset=UTF-8";
-  private static final int CONNECTION_TIMEOUT_MSEC = 600000;
-  private static final int MAX_CONNECTIONS = 100;
-
-  private static final int MAX_PER_ROUTE = 10;
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtil.class);
   private static final String LAST_MODIFIED = "Last-Modified";
   private static final String MODIFIED_SINCE = "If-Modified-Since";
   private static final int HTTP_PORT = 80;
-
   private static final int HTTPS_PORT = 443;
-
   private static final String HTTP_PROTOCOL = "http";
-
   private static final String HTTPS_PROTOCOL = "https";
-
+  private static final String UTF_8 = "UTF-8";
   private final DefaultHttpClient client;
-
-  /**
-   * @deprecated use the constructor that takes a Http client.
-   */
-  @Deprecated
-  public HttpUtil() {
-    this.client = newMultithreadedClient();
-  }
 
   public HttpUtil(DefaultHttpClient client) {
     this.client = client;
@@ -164,7 +152,7 @@ public class HttpUtil {
 
   /**
    * Creates a url form encoded http entity suitable for POST requests with a single given parameter
-   * encoded in utf8
+   * encoded in utf8.
    * 
    * @param kvp the parameter map to encode
    */
@@ -174,16 +162,16 @@ public class HttpUtil {
       formparams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
     }
     try {
-      return new UrlEncodedFormEntity(formparams, HTTP.UTF_8);
+      return new UrlEncodedFormEntity(formparams, UTF_8);
     } catch (UnsupportedEncodingException e) {
-      LOG.error("Cant encode post entity with utf8", e);
+      LOG.error("Can't encode post entity with utf8", e);
     }
     return null;
   }
 
   /**
    * Creates a url form encoded http entity suitable for POST requests with a single given parameter
-   * encoded in utf8
+   * encoded in utf8.
    * 
    * @param key the parameter name
    * @param data the value to encode
@@ -192,19 +180,11 @@ public class HttpUtil {
     List<NameValuePair> formparams = new ArrayList<NameValuePair>(1);
     formparams.add(new BasicNameValuePair(key, data));
     try {
-      return new UrlEncodedFormEntity(formparams, HTTP.UTF_8);
+      return new UrlEncodedFormEntity(formparams, UTF_8);
     } catch (UnsupportedEncodingException e) {
-      LOG.error("Cant encode post entity with utf8", e);
+      LOG.error("Can't encode post entity with utf8", e);
     }
     return null;
-  }
-
-  /**
-   * @deprecated use parameterized newMultithreadedClient method
-   */
-  @Deprecated
-  public static DefaultHttpClient newMultithreadedClient() {
-    return newMultithreadedClient(CONNECTION_TIMEOUT_MSEC, MAX_CONNECTIONS, MAX_PER_ROUTE);
   }
 
   /**
@@ -218,7 +198,7 @@ public class HttpUtil {
    */
   public static DefaultHttpClient newMultithreadedClient(int timeout, int maxConnections, int maxPerRoute) {
     HttpParams params = new BasicHttpParams();
-    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, "UTF-8");
+    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, UTF_8);
     HttpConnectionParams.setConnectionTimeout(params, timeout);
     HttpConnectionParams.setSoTimeout(params, timeout);
     params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, timeout);
@@ -231,24 +211,6 @@ public class HttpUtil {
     connectionManager.setMaxTotal(maxConnections);
     connectionManager.setDefaultMaxPerRoute(maxPerRoute);
     return new DefaultHttpClient(connectionManager, params);
-  }
-
-  /**
-   * @deprecated use parameterized newMultithreadedClient method
-   */
-  @Deprecated
-  public static DefaultHttpClient newMultithreadedClientHttps() {
-    return newMultithreadedClient();
-  }
-
-  /**
-   * @deprecated use parameterized newMultithreadedClient method and add interceptor manually
-   */
-  @Deprecated
-  public static DefaultHttpClient newMultithreadedClientWithPreemptiveAuthentication() {
-    DefaultHttpClient client = newMultithreadedClient();
-    client.addRequestInterceptor(new PreemptiveAuthenticationInterceptor(), 0);
-    return client;
   }
 
 
@@ -268,7 +230,7 @@ public class HttpUtil {
         return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(rfcDate);
       }
     } catch (ParseException e) {
-      LOG.debug("Cant parse RFC2616 date");
+      LOG.debug("Can't parse RFC2616 date");
     }
     return null;
   }
@@ -290,12 +252,12 @@ public class HttpUtil {
   }
 
   /**
-   * Creates a http entity suitable for POSTs that encodes a single string in utf8
+   * Creates a http entity suitable for POSTs that encodes a single string in utf8.
    * 
    * @param data to encode
    */
   public static HttpEntity stringEntity(String data) throws UnsupportedEncodingException {
-    return new StringEntity(data, HTTP.UTF_8);
+    return new StringEntity(data, UTF_8);
   }
 
   /**
@@ -325,7 +287,7 @@ public class HttpUtil {
   }
 
   /**
-   * Executes a generic DELETE request
+   * Executes a generic DELETE request.
    */
   public Response delete(String url, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
     LOG.info("Http delete to {}", url);
@@ -343,7 +305,7 @@ public class HttpUtil {
   }
 
   /**
-   * Downloads something via HTTP GET to the provided file
+   * Downloads something via HTTP GET to the provided file.
    */
   public StatusLine download(String url, File downloadTo) throws IOException {
     return download(new URL(url), downloadTo);
@@ -356,11 +318,9 @@ public class HttpUtil {
   public String download(URL url) throws IOException {
     try {
       Response resp = get(url.toString());
-
       return resp.content;
     } catch (URISyntaxException e) {
-      // comes from a URL instance - cant be wrong
-      LOG.error("Exception thrown", e);
+      LOG.error("Invalid URL provided: {}", url, e);
     }
     return null;
   }
@@ -400,8 +360,7 @@ public class HttpUtil {
       }
       return resp.content;
     } catch (URISyntaxException e) {
-      // comes from a URL instance - cant be wrong
-      LOG.error("Exception thrown", e);
+      LOG.error("Invalid URL provided: {}", url, e);
     }
     return null;
   }
@@ -421,7 +380,7 @@ public class HttpUtil {
 
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
-   * since the last download
+   * since the last download.
    */
   public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
     StatusLine status = downloadIfModifiedSince(url, downloadTo);
@@ -487,7 +446,7 @@ public class HttpUtil {
 
   /**
    * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
-   * on the filesystem since the last download
+   * on the filesystem since the last download.
    * 
    * @param url url to download
    * @param downloadTo file to download into and used to get the last modified date from
@@ -545,7 +504,7 @@ public class HttpUtil {
     HttpEntity entity = response.getEntity();
     if (entity != null) {
       // Adding a default charset in case it is not found
-      result.content = EntityUtils.toString(entity, HTTP.UTF_8);
+      result.content = EntityUtils.toString(entity, UTF_8);
       EntityUtils.consume(entity);
     }
     return result;
@@ -560,7 +519,7 @@ public class HttpUtil {
   }
 
   /**
-   * Executes a generic POST request
+   * Executes a generic POST request.
    */
   public Response post(String uri, HttpEntity encodedEntity) throws IOException, URISyntaxException {
     return post(uri, null, null, null, encodedEntity);
@@ -611,5 +570,4 @@ public class HttpUtil {
     }
     return false;
   }
-
 }

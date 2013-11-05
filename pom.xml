@@ -20,10 +20,10 @@
 
     <commons-io.version>2.4</commons-io.version>
     <commons-lang.version>3.1</commons-lang.version>
-    <httpclient.version>4.2.3</httpclient.version>
+    <httpclient.version>4.2.5</httpclient.version>
     <junit.version>4.11</junit.version>
-    <logback.version>1.0.9</logback.version>
-    <slf4j.version>1.7.2</slf4j.version>
+    <logback.version>1.0.13</logback.version>
+    <slf4j.version>1.7.5</slf4j.version>
   </properties>
 
   <scm>
@@ -83,8 +83,6 @@
       <artifactId>slf4j-api</artifactId>
       <version>${slf4j.version}</version>
     </dependency>
-
-    <!-- Test -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
@@ -98,5 +96,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 </project>
