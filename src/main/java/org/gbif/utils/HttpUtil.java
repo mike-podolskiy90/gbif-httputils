@@ -33,6 +33,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -69,7 +70,7 @@ import org.slf4j.LoggerFactory;
 public class HttpUtil {
 
   /**
-   * An {@link HttpResonse} wrapper exposing limited fields.
+   * An {@link org.apache.http.HttpResonse} wrapper exposing limited fields.
    */
   public static class Response {
 
@@ -105,6 +106,7 @@ public class HttpUtil {
       return response.getLocale();
     }
 
+    @Deprecated
     public HttpParams getParams() {
       return response.getParams();
     }
@@ -140,9 +142,9 @@ public class HttpUtil {
   private static final String HTTP_PROTOCOL = "http";
   private static final String HTTPS_PROTOCOL = "https";
   private static final String UTF_8 = "UTF-8";
-  private final DefaultHttpClient client;
+  private final HttpClient client;
 
-  public HttpUtil(DefaultHttpClient client) {
+  public HttpUtil(HttpClient client) {
     this.client = client;
   }
 
