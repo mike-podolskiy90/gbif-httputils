@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.sun.istack.internal.Nullable;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
@@ -41,6 +42,7 @@ import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.client.protocol.ClientContext;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
@@ -55,7 +57,6 @@ import org.apache.http.params.CoreProtocolPNames;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.protocol.HTTP;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
@@ -133,7 +134,6 @@ public class HttpUtil {
 
   }
 
-  public static final String FORM_URL_ENCODED_CONTENT_TYPE = "application/x-www-form-urlencoded; charset=UTF-8";
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtil.class);
   private static final String LAST_MODIFIED = "Last-Modified";
   private static final String MODIFIED_SINCE = "If-Modified-Since";
@@ -282,7 +282,7 @@ public class HttpUtil {
       CredentialsProvider credsProvider = new BasicCredentialsProvider();
       credsProvider.setCredentials(scope, credentials);
 
-      authContext.setAttribute(ClientContext.CREDS_PROVIDER, credsProvider);
+      authContext.setAttribute(HttpClientContext.CREDS_PROVIDER, credsProvider);
     }
 
     return authContext;
@@ -512,6 +512,7 @@ public class HttpUtil {
     return result;
   }
 
+  @Deprecated
   public HttpParams params(Map<String, Object> params) {
     HttpParams p = new BasicHttpParams();
     for (Map.Entry<String, Object> param : params.entrySet()) {
@@ -523,24 +524,30 @@ public class HttpUtil {
   /**
    * Executes a generic POST request.
    */
-  public Response post(String uri, HttpEntity encodedEntity) throws IOException, URISyntaxException {
-    return post(uri, null, null, null, encodedEntity);
+  public Response post(String uri, HttpEntity requestEntity) throws IOException, URISyntaxException {
+    return post(uri, null, null, requestEntity);
   }
 
-  public Response post(String uri, HttpParams params, Map<String, String> headers,
-    UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
-    return post(uri, params, headers, credentials, null);
+  public Response post(String uri, UsernamePasswordCredentials credentials, HttpEntity requestEntity)
+    throws IOException, URISyntaxException {
+    return post(uri, null, credentials, requestEntity);
   }
 
-  public Response post(String uri, HttpParams params, Map<String, String> headers,
-    UsernamePasswordCredentials credentials, HttpEntity encodedEntity) throws IOException, URISyntaxException {
+  public Response post(String uri, Map<String, String> headers, UsernamePasswordCredentials credentials)
+    throws IOException, URISyntaxException {
+    return post(uri, headers, credentials, null);
+  }
+
+  public Response post(String uri, Map<String, String> headers, UsernamePasswordCredentials credentials,
+    HttpEntity requestEntity) throws IOException, URISyntaxException {
     HttpPost post = new HttpPost(uri);
-    post.setHeader(HTTP.CONTENT_TYPE, FORM_URL_ENCODED_CONTENT_TYPE);
-    // if (params != null) {
-    // post.setParams(params);
-    // }
-    if (encodedEntity != null) {
-      post.setEntity(encodedEntity);
+    if (headers != null) {
+      for (Map.Entry<String, String> header : headers.entrySet()) {
+        post.addHeader(StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
+      }
+    }
+    if (requestEntity != null) {
+      post.setEntity(requestEntity);
     }
     // authentication
     HttpContext authContext = buildContext(uri, credentials);
@@ -549,14 +556,27 @@ public class HttpUtil {
     // response
     if (response != null) {
       Response result = new Response(response);
-      HttpEntity entity = response.getEntity();
-      if (entity != null) {
-        result.content = EntityUtils.toString(entity);
-        EntityUtils.consume(entity);
+      HttpEntity respEntity = response.getEntity();
+      if (respEntity != null) {
+        result.content = EntityUtils.toString(respEntity);
+        EntityUtils.consume(respEntity);
       }
       return result;
     }
     return null;
+  }
+
+  @Deprecated
+  public Response post(String uri, HttpParams params, Map<String, String> headers,
+    UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+    return post(uri, params, headers, credentials, null);
+  }
+
+
+  @Deprecated
+  public Response post(String uri, HttpParams params, Map<String, String> headers,
+    UsernamePasswordCredentials credentials, HttpEntity encodedEntity) throws IOException, URISyntaxException {
+    return post(uri, headers, credentials, encodedEntity);
   }
 
   public boolean verifyHost(HttpHost host) {
