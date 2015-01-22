@@ -23,7 +23,7 @@
   </scm>
 
   <properties>
-    <jdkLevel>1.7</jdkLevel>
+    <jdkLevel>1.6</jdkLevel>
 
     <commons-io.version>2.4</commons-io.version>
     <commons-lang.version>3.3.2</commons-lang.version>
