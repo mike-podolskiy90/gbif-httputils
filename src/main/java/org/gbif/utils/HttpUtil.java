@@ -40,7 +40,6 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.params.ClientPNames;
-import org.apache.http.client.protocol.ClientContext;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
@@ -70,7 +69,7 @@ import org.slf4j.LoggerFactory;
 public class HttpUtil {
 
   /**
-   * An {@link org.apache.http.HttpResonse} wrapper exposing limited fields.
+   * An {@link org.apache.http.HttpResponse} wrapper exposing limited fields.
    */
   public static class Response {
 
@@ -262,7 +261,7 @@ public class HttpUtil {
   }
 
   /**
-   * Whether a request has succedded, i.e.: 200 response code
+   * Whether a request has succeeded, i.e.: 200 response code
    */
   public static boolean success(Response resp) {
     return resp != null && success(resp.getStatusLine());
@@ -331,20 +330,26 @@ public class HttpUtil {
 
     // execute
     HttpResponse response = client.execute(get);
-    HttpEntity entity = response.getEntity();
-    if (entity != null) {
-      // copy stream to local file
-      FileUtils.forceMkdir(downloadTo.getParentFile());
-      OutputStream fos = new FileOutputStream(downloadTo, false);
-      try {
-        entity.writeTo(fos);
-      } finally {
-        fos.close();
+    final StatusLine status = response.getStatusLine();
+    // write to file only when download succeeds
+    if (success(status)) {
+      HttpEntity entity = response.getEntity();
+      if (entity != null) {
+        // copy stream to local file
+        FileUtils.forceMkdir(downloadTo.getParentFile());
+        OutputStream fos = new FileOutputStream(downloadTo, false);
+        try {
+          entity.writeTo(fos);
+        } finally {
+          fos.close();
+        }
       }
-    }
 
-    LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
-    return response.getStatusLine();
+      LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
+    } else {
+      LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
+    }
+    return status;
   }
 
   /**
@@ -412,7 +417,9 @@ public class HttpUtil {
     final StatusLine status = response.getStatusLine();
     if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
       LOG.debug("Content not modified since last request");
-    } else {
+    }
+    // write to file only when download succeeds
+    else if (success(status)) {
       HttpEntity entity = response.getEntity();
       if (entity != null) {
 
@@ -440,6 +447,8 @@ public class HttpUtil {
       EntityUtils.consume(entity);
 
       LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
+    } else {
+      LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
     }
 
     return status;
