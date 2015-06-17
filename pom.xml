@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.gbif</groupId>
     <artifactId>motherpom</artifactId>
-    <version>19</version>
+    <version>23-SNAPSHOT</version>
   </parent>
 
   <artifactId>gbif-httputils</artifactId>
@@ -23,7 +23,7 @@
   </scm>
 
   <properties>
-    <jdkLevel>1.6</jdkLevel>
+    <jdkLevel>1.8</jdkLevel>
 
     <commons-io.version>2.4</commons-io.version>
     <commons-lang.version>3.3.2</commons-lang.version>
