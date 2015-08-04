@@ -31,10 +31,9 @@ import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
@@ -47,6 +46,7 @@ import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
@@ -140,9 +140,9 @@ public class HttpUtil {
   private static final String HTTP_PROTOCOL = "http";
   private static final String HTTPS_PROTOCOL = "https";
   private static final String UTF_8 = "UTF-8";
-  private final HttpClient client;
+  private final CloseableHttpClient client;
 
-  public HttpUtil(HttpClient client) {
+  public HttpUtil(CloseableHttpClient client) {
     this.client = client;
   }
 
@@ -293,13 +293,16 @@ public class HttpUtil {
     LOG.info("Http delete to {}", url);
     HttpDelete delete = new HttpDelete(url);
     HttpContext authContext = buildContext(url, credentials);
-    // HttpGet get = new HttpGet(url);
-    HttpResponse response = client.execute(delete, authContext);
+    CloseableHttpResponse response = client.execute(delete, authContext);
     Response result = new Response(response);
-    HttpEntity entity = response.getEntity();
-    if (entity != null) {
-      result.content = EntityUtils.toString(entity);
-      EntityUtils.consume(entity);
+    try {
+      HttpEntity entity = response.getEntity();
+      if (entity != null) {
+        result.content = EntityUtils.toString(entity);
+        EntityUtils.consume(entity);
+      }
+    } finally {
+      closeQuietly(response);
     }
     return result;
   }
@@ -329,25 +332,18 @@ public class HttpUtil {
     HttpGet get = new HttpGet(url.toString());
 
     // execute
-    HttpResponse response = client.execute(get);
+    CloseableHttpResponse response = client.execute(get);
     final StatusLine status = response.getStatusLine();
-    // write to file only when download succeeds
-    if (success(status)) {
-      HttpEntity entity = response.getEntity();
-      if (entity != null) {
-        // copy stream to local file
-        FileUtils.forceMkdir(downloadTo.getParentFile());
-        OutputStream fos = new FileOutputStream(downloadTo, false);
-        try {
-          entity.writeTo(fos);
-        } finally {
-          fos.close();
-        }
+    try {
+      // write to file only when download succeeds
+      if (success(status)) {
+        saveToFile(response, downloadTo);
+        LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
+      } else {
+        LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
       }
-
-      LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
-    } else {
-      LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
+    } finally {
+      closeQuietly(response);
     }
     return status;
   }
@@ -400,8 +396,7 @@ public class HttpUtil {
    * @param downloadTo file to download to
    * @return true if changed or false if unmodified since lastModified
    */
-  public StatusLine downloadIfModifiedSince(final URL url, final Date lastModified, final File downloadTo)
-    throws IOException {
+  public StatusLine downloadIfModifiedSince(final URL url, final Date lastModified, final File downloadTo) throws IOException {
 
     HttpGet get = new HttpGet(url.toString());
 
@@ -413,45 +408,49 @@ public class HttpUtil {
     }
 
     // execute
-    HttpResponse response = client.execute(get);
+    CloseableHttpResponse response = client.execute(get);
     final StatusLine status = response.getStatusLine();
-    if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
-      LOG.debug("Content not modified since last request");
-    }
-    // write to file only when download succeeds
-    else if (success(status)) {
-      HttpEntity entity = response.getEntity();
-      if (entity != null) {
+    try {
+      if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
+        LOG.debug("Content not modified since last request");
 
-        Date serverModified = null;
-        Header modHeader = response.getFirstHeader(LAST_MODIFIED);
-        if (modHeader != null) {
-          serverModified = parseHeaderDate(modHeader.getValue());
-        }
+      } else if (success(status)) {
+        // write to file only when download succeeds
+        saveToFile(response, downloadTo);
+        LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
 
-        // copy stream to local file
-        FileUtils.forceMkdir(downloadTo.getParentFile());
-        OutputStream fos = new FileOutputStream(downloadTo, false);
-        try {
-          entity.writeTo(fos);
-        } finally {
-          fos.close();
-        }
-        // update last modified of file with http header date from server
-        if (serverModified != null) {
-          downloadTo.setLastModified(serverModified.getTime());
-        }
+      } else {
+        LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
       }
 
-      // close http connection
-      EntityUtils.consume(entity);
-
-      LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
-    } else {
-      LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
+    } finally {
+      closeQuietly(response);
     }
-
     return status;
+  }
+
+  private void saveToFile(CloseableHttpResponse response, File downloadTo) throws IOException {
+    HttpEntity entity = response.getEntity();
+    if (entity != null) {
+      Date serverModified = null;
+      Header modHeader = response.getFirstHeader(LAST_MODIFIED);
+      if (modHeader != null) {
+        serverModified = parseHeaderDate(modHeader.getValue());
+      }
+
+      // copy stream to local file
+      FileUtils.forceMkdir(downloadTo.getParentFile());
+      OutputStream fos = new FileOutputStream(downloadTo, false);
+      try {
+        entity.writeTo(fos);
+      } finally {
+        fos.close();
+      }
+      // update last modified of file with http header date from server
+      if (serverModified != null) {
+        downloadTo.setLastModified(serverModified.getTime());
+      }
+    }
   }
 
   /**
@@ -469,7 +468,7 @@ public class HttpUtil {
     return downloadIfModifiedSince(url, lastModified, downloadTo);
   }
 
-  public HttpResponse executeGetWithTimeout(HttpGet get, int timeout) throws ClientProtocolException, IOException {
+  public CloseableHttpResponse executeGetWithTimeout(HttpGet get, int timeout) throws IOException {
     HttpParams httpParams = client.getParams();
     // keep old values to rest afterwards
     int ct = HttpConnectionParams.getConnectionTimeout(httpParams);
@@ -478,7 +477,7 @@ public class HttpUtil {
     HttpConnectionParams.setConnectionTimeout(httpParams, timeout);
     HttpConnectionParams.setSoTimeout(httpParams, timeout);
 
-    HttpResponse response = null;
+    CloseableHttpResponse response = null;
     try {
       response = client.execute(get);
     } finally {
@@ -508,15 +507,18 @@ public class HttpUtil {
     }
     // authentication
     HttpContext authContext = buildContext(url, credentials);
-    HttpResponse response = client.execute(get, authContext);
-
+    CloseableHttpResponse response = client.execute(get, authContext);
     Response result = new Response(response);
-    HttpEntity entity = response.getEntity();
-    if (entity != null) {
-      // Adding a default charset in case it is not found
-      result.content = EntityUtils.toString(entity, UTF_8);
-      EntityUtils.consume(entity);
+    try {
+      HttpEntity entity = response.getEntity();
+      if (entity != null) {
+        // Adding a default charset in case it is not found
+        result.content = EntityUtils.toString(entity, UTF_8);
+      }
+    } finally {
+      closeQuietly(response);
     }
+
     return result;
   }
 
@@ -589,15 +591,29 @@ public class HttpUtil {
 
   public boolean verifyHost(HttpHost host) {
     if (host != null) {
+      CloseableHttpResponse resp = null;
       try {
         HttpHead head = new HttpHead(host.toURI());
-        client.execute(host, head);
+        resp = client.execute(host, head);
         return true;
+
       } catch (Exception e) {
-        e.printStackTrace();
         LOG.debug("Exception thrown", e);
+
+      } finally {
+        closeQuietly(resp);
       }
     }
     return false;
+  }
+
+  private void closeQuietly(CloseableHttpResponse resp) {
+    if (resp != null) {
+      try {
+        resp.close();
+      } catch (IOException e) {
+        LOG.debug("Failed to close http response", e);
+      }
+    }
   }
 }
