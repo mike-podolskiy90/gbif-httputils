@@ -17,7 +17,7 @@
 'UTF-8'
 -docfilessubdirs
 -doctitle
-'GBIF HttpUtils 0.8-SNAPSHOT API'
+'GBIF HttpUtils 0.9-SNAPSHOT API'
 -link
 'http://freemarker.org/docs/api'
 -link
@@ -30,4 +30,4 @@
 -use
 -version
 -windowtitle
-'GBIF HttpUtils 0.8-SNAPSHOT API'
+'GBIF HttpUtils 0.9-SNAPSHOT API'
