@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.gbif</groupId>
     <artifactId>motherpom</artifactId>
-    <version>24</version>
+    <version>26</version>
   </parent>
 
   <artifactId>gbif-httputils</artifactId>
@@ -32,7 +32,7 @@
     <httpcore.version>4.3.3</httpcore.version>
     <junit.version>4.12</junit.version>
     <logback.version>1.1.3</logback.version>
-    <slf4j.version>1.7.12</slf4j.version>
+    <slf4j.version>1.7.13</slf4j.version>
   </properties>
 
   <repositories>
