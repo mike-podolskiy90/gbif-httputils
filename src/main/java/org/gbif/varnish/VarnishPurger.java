@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.Set;
 
 import com.google.common.base.Joiner;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.slf4j.Logger;
@@ -28,7 +29,8 @@ public class VarnishPurger {
   public VarnishPurger(CloseableHttpClient client, URI apiBaseUrl) {
     this.client = client;
     this.apiBaseUrl = apiBaseUrl;
-    apiRoot = apiBaseUrl.getPath();
+    //make sure there is not trailing slash on apiRoot
+    apiRoot = StringUtils.removeEnd(apiBaseUrl.getPath(), "/");
   }
 
   /**
