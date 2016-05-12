@@ -3,6 +3,7 @@ package org.gbif.varnish;
 import java.io.IOException;
 import java.net.URI;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -20,6 +21,8 @@ import static org.mockito.Mockito.mock;
  * Test VarnishPurger generated URI and Http headers
  */
 public class VarnishPurgerTest {
+
+  private static final String API_BASEURL = "http://api.gbif-dev.org/v1/";
 
   /**
    * Mock HttpClient to intercept the uri and headers without sending them.
@@ -73,16 +76,29 @@ public class VarnishPurgerTest {
   }
 
   @Test
+  public void testPurge() {
+    MockCloseableHttpClientTest mockHttClient = new MockCloseableHttpClientTest();
+    VarnishPurger purger = new VarnishPurger(mockHttClient, URI.create(API_BASEURL));
+    purger.purge("occurrence/15");
+    assertEquals(API_BASEURL + "occurrence/15", mockHttClient.getUri());
+
+    purger.purge("/occurrence/15");
+    assertEquals(API_BASEURL + "occurrence/15", mockHttClient.getUri());
+  }
+
+  @Test
   public void testBan() {
     MockCloseableHttpClientTest mockHttClient = new MockCloseableHttpClientTest();
 
-    VarnishPurger purger = new VarnishPurger(mockHttClient, URI.create("http://api.gbif.org/v1/"));
+    VarnishPurger purger = new VarnishPurger(mockHttClient, URI.create(API_BASEURL));
     purger.ban("directory/*");
 
     assertEquals("/v1/directory/*", mockHttClient.getFirstHeaderValue(HttpBan.BAN_HEADER));
+    assertEquals(API_BASEURL, mockHttClient.getUri());
 
     //test no trailing slash
-    purger = new VarnishPurger(mockHttClient, URI.create("http://api.gbif.org/v1"));
-    purger.ban("directory/*");
+    purger = new VarnishPurger(mockHttClient, URI.create(StringUtils.removeEnd(API_BASEURL, "/")));
+    purger.ban("/directory/*");
+    assertEquals("/v1/directory/*", mockHttClient.getFirstHeaderValue(HttpBan.BAN_HEADER));
   }
 }

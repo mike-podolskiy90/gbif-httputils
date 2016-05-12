@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.Set;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -21,16 +22,27 @@ import org.slf4j.LoggerFactory;
 public class VarnishPurger {
   private static final Logger LOG = LoggerFactory.getLogger(VarnishPurger.class);
   private final CloseableHttpClient client;
+
   private final URI apiBaseUrl;
-  private final String apiRoot;
+  private final String apiBaseUrlStr;
+
+  //path represents the part after the authority (domain and extension)
+  private final String apiPath;
+
+
+
   private static final Joiner PATH_JOINER = Joiner.on("/").skipNulls();
   private static final Joiner PIPE_JOINER = Joiner.on("|").skipNulls();
 
   public VarnishPurger(CloseableHttpClient client, URI apiBaseUrl) {
+    Preconditions.checkArgument(apiBaseUrl.isAbsolute(), "apiBaseUrl must be absolute");
+
     this.client = client;
     this.apiBaseUrl = apiBaseUrl;
+    this.apiBaseUrlStr = StringUtils.removeEnd(apiBaseUrl.toString(), "/");
+
     //make sure there is not trailing slash on apiRoot
-    apiRoot = StringUtils.removeEnd(apiBaseUrl.getPath(), "/");
+    this.apiPath = StringUtils.removeEnd(apiBaseUrl.getPath(), "/");
   }
 
   /**
@@ -49,10 +61,12 @@ public class VarnishPurger {
   }
 
   /**
-   * @param path relative to the API base URL which gets prepended
+   * Send a PURGE request to Varnish for a specific path.
+   * @param path relative to the API base URL (apiBaseUrl)
    */
   public void purge(String path) {
-    URI uri = URI.create(String.format("%s/%s", apiRoot, path));
+    Preconditions.checkNotNull(path, "path can not be null");
+    URI uri = URI.create(String.format("%s/%s", apiBaseUrlStr, StringUtils.removeStart(path, "/")));
     try {
       CloseableHttpResponse resp = client.execute(new HttpPurge(uri));
       resp.close();
@@ -62,10 +76,12 @@ public class VarnishPurger {
   }
 
   /**
-   * @param regex ban regex relative to the API base URL which gets prepended
+   * Send a BAN request to Varnish using a regex.
+   * @param regex regex representing the path(s) relative to the API base URL (apiBaseUrl)
    */
   public void ban(String regex) {
-    regex = String.format("%s/%s", apiRoot, regex);
+    Preconditions.checkNotNull(regex, "regex can not be null");
+    regex = String.format("%s/%s", apiPath, StringUtils.removeStart(regex, "/"));
     try {
       CloseableHttpResponse resp = client.execute(new HttpBan(apiBaseUrl, regex));
       resp.close();
