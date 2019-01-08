@@ -68,6 +68,11 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpUtil {
 
+  static final String gbifVersion = HttpUtil.class.getPackage().getImplementationVersion() == null
+      ? "development"
+      : HttpUtil.class.getPackage().getImplementationVersion();
+  static final String javaVersion = Runtime.class.getPackage().getImplementationVersion();
+
   /**
    * An {@link org.apache.http.HttpResponse} wrapper exposing limited fields.
    */
@@ -189,9 +194,9 @@ public class HttpUtil {
 
   /**
    * This creates a new threadsafe, multithreaded http client with support for http and https.
-   * Default http client values are partially overriden to use UTF8 as the default charset and an explicit timeout
+   * Default HTTP client values are partially overridden to use UTF8 as the default charset and an explicit timeout
    * is required for configuration.
-   * 
+   *
    * @param timeout in milliseconds
    * @param maxConnections maximum allowed connections in total
    * @param maxPerRoute maximum allowed connections per route
@@ -201,6 +206,10 @@ public class HttpUtil {
     params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, UTF_8);
     HttpConnectionParams.setConnectionTimeout(params, timeout);
     HttpConnectionParams.setSoTimeout(params, timeout);
+    params.setParameter(CoreProtocolPNames.USER_AGENT,
+        String.format("GBIF-HttpClient/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
+            gbifVersion, javaVersion, timeout, maxConnections, maxPerRoute));
+
     params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, timeout);
 
     SchemeRegistry schemeRegistry = new SchemeRegistry();
