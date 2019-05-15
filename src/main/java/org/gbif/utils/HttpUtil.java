@@ -449,6 +449,9 @@ public class HttpUtil {
 
       // copy stream to local file
       FileUtils.forceMkdir(downloadTo.getParentFile());
+      if (downloadTo.isFile()) {
+        downloadTo.delete();
+      }
       OutputStream fos = new FileOutputStream(downloadTo, false);
       try {
         entity.writeTo(fos);

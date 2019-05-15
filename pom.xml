@@ -22,13 +22,6 @@
     <tag>HEAD</tag>
   </scm>
 
-  <distributionManagement>
-    <site>
-      <id>gh-pages</id>
-      <url>http://gbif.github.io/gbif-httputils/</url>
-    </site>
-  </distributionManagement>
-
   <properties>
     <jdkLevel>1.8</jdkLevel>
 
