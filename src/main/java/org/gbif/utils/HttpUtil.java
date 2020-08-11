@@ -1,5 +1,67 @@
+/***************************************************************************
+ * Copyright 2020 Global Biodiversity Information Facility Secretariat
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ ***************************************************************************/
 package org.gbif.utils;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
+import org.apache.http.HeaderIterator;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.NameValuePair;
+import org.apache.http.ProtocolException;
+import org.apache.http.ProtocolVersion;
+import org.apache.http.StatusLine;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.RedirectStrategy;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.DateUtils;
+import org.apache.http.config.ConnectionConfig;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultRedirectStrategy;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -8,8 +70,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -17,61 +78,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateFormatUtils;
-import org.apache.http.Header;
-import org.apache.http.HeaderIterator;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.NameValuePair;
-import org.apache.http.ProtocolVersion;
-import org.apache.http.StatusLine;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.params.ClientPNames;
-import org.apache.http.client.protocol.HttpClientContext;
-import org.apache.http.conn.scheme.PlainSocketFactory;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.PoolingClientConnectionManager;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.CoreProtocolPNames;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * A utility class for HTTP related functions.
  * <p/>
- * This class itself is thread safe. If you require thread safety please make sure to use a thread safe http client as
+ * This class itself is thread safe. If you require thread safety please make sure to use a thread safe HTTP client as
  * the underlying client. The ones created here in the static builder methods or via the default constructor are.
  */
 public class HttpUtil {
 
-  static final String gbifVersion = HttpUtil.class.getPackage().getImplementationVersion() == null
+  static final String GBIF_VERSION = HttpUtil.class.getPackage().getImplementationVersion() == null
       ? "development"
       : HttpUtil.class.getPackage().getImplementationVersion();
-  static final String javaVersion = Runtime.class.getPackage().getImplementationVersion();
+  static final String JAVA_VERSION = Runtime.class.getPackage().getImplementationVersion();
 
   /**
    * An {@link org.apache.http.HttpResponse} wrapper exposing limited fields.
@@ -138,14 +156,11 @@ public class HttpUtil {
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtil.class);
-  private static final String LAST_MODIFIED = "Last-Modified";
-  private static final String MODIFIED_SINCE = "If-Modified-Since";
-  private static final int HTTP_PORT = 80;
-  private static final int HTTPS_PORT = 443;
-  private static final String HTTP_PROTOCOL = "http";
-  private static final String HTTPS_PROTOCOL = "https";
-  private static final String UTF_8 = "UTF-8";
   private final CloseableHttpClient client;
+
+  public HttpUtil() {
+    this.client = newMultithreadedClient(60_000, 250, 5);
+  }
 
   public HttpUtil(CloseableHttpClient client) {
     this.client = client;
@@ -156,9 +171,9 @@ public class HttpUtil {
   }
 
   /**
-   * Creates a url form encoded http entity suitable for POST requests with a single given parameter
-   * encoded in utf8.
-   * 
+   * Creates a URL form encoded HTTP entity suitable for POST requests with a single given parameter
+   * encoded in UTF-8.
+   *
    * @param kvp the parameter map to encode
    */
   public static HttpEntity map2Entity(Map<String, String> kvp) {
@@ -166,82 +181,120 @@ public class HttpUtil {
     for (Map.Entry<String, String> entry : kvp.entrySet()) {
       formparams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
     }
-    try {
-      return new UrlEncodedFormEntity(formparams, UTF_8);
-    } catch (UnsupportedEncodingException e) {
-      LOG.error("Can't encode post entity with utf8", e);
-    }
-    return null;
+    return new UrlEncodedFormEntity(formparams, StandardCharsets.UTF_8);
   }
 
   /**
-   * Creates a url form encoded http entity suitable for POST requests with a single given parameter
-   * encoded in utf8.
-   * 
+   * Creates a URL form encoded HTTP entity suitable for POST requests with a single given parameter
+   * encoded in UTF-8.
+   *
    * @param key the parameter name
    * @param data the value to encode
    */
   public static HttpEntity map2Entity(String key, String data) {
     List<NameValuePair> formparams = new ArrayList<NameValuePair>(1);
     formparams.add(new BasicNameValuePair(key, data));
-    try {
-      return new UrlEncodedFormEntity(formparams, UTF_8);
-    } catch (UnsupportedEncodingException e) {
-      LOG.error("Can't encode post entity with utf8", e);
-    }
-    return null;
+    return new UrlEncodedFormEntity(formparams, StandardCharsets.UTF_8);
   }
 
   /**
-   * This creates a new threadsafe, multithreaded http client with support for http and https.
-   * Default HTTP client values are partially overridden to use UTF8 as the default charset and an explicit timeout
+   * This creates a new threadsafe, singlethreaded HTTP client with support for HTTP and HTTPS.
+   * <p>
+   * Default HTTP client values are partially overridden to use UTF-8 as the default charset and an explicit timeout
+   * is required for configuration.
+   *
+   * @param timeout in milliseconds
+   */
+  public static CloseableHttpClient newSinglethreadedClient(int timeout) {
+    ConnectionConfig connectionConfig = ConnectionConfig.custom()
+      .setCharset(StandardCharsets.UTF_8)
+      .build();
+
+    RequestConfig requestConfig = RequestConfig.custom()
+      .setSocketTimeout(timeout)
+      .setConnectTimeout(timeout)
+      .setConnectionRequestTimeout(timeout)
+      .build();
+
+    SSLContext sslcontext = SSLContexts.createSystemDefault();
+
+    Registry registry = RegistryBuilder.create()
+      .register("http", PlainConnectionSocketFactory.INSTANCE)
+      .register("https", new SSLConnectionSocketFactory(sslcontext))
+      .build();
+
+    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(registry);
+    connectionManager.setDefaultConnectionConfig(connectionConfig);
+
+    RedirectStrategy redirectStrategy = new DefaultRedirectStrategy() {
+      public boolean isRedirected(HttpRequest request, HttpResponse response, HttpContext context) throws ProtocolException {
+        return super.isRedirected(request, response, context)
+          || (response.getStatusLine().getStatusCode() == 308
+          && isRedirectable(request.getRequestLine().getMethod()));
+      }
+    };
+
+    final String userAgent = String.format("GBIF-HttpClient/%s (Java/%s; S-%d; +https://www.gbif.org/)",
+      GBIF_VERSION, JAVA_VERSION, timeout);
+
+    return HttpClientBuilder.create()
+      .setRedirectStrategy(redirectStrategy)
+      .setDefaultRequestConfig(requestConfig)
+      .setConnectionManager(connectionManager)
+      .setUserAgent(userAgent)
+      .build();
+  }
+
+  /**
+   * This creates a new threadsafe, multithreaded HTTP client with support for HTTP and HTTPS.
+   * <p>
+   * Default HTTP client values are partially overridden to use UTF-8 as the default charset and an explicit timeout
    * is required for configuration.
    *
    * @param timeout in milliseconds
    * @param maxConnections maximum allowed connections in total
    * @param maxPerRoute maximum allowed connections per route
    */
-  public static DefaultHttpClient newMultithreadedClient(int timeout, int maxConnections, int maxPerRoute) {
-    HttpParams params = new BasicHttpParams();
-    params.setParameter(CoreProtocolPNames.HTTP_CONTENT_CHARSET, UTF_8);
-    HttpConnectionParams.setConnectionTimeout(params, timeout);
-    HttpConnectionParams.setSoTimeout(params, timeout);
-    params.setParameter(CoreProtocolPNames.USER_AGENT,
-        String.format("GBIF-HttpClient/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
-            gbifVersion, javaVersion, timeout, maxConnections, maxPerRoute));
+  public static CloseableHttpClient newMultithreadedClient(int timeout, int maxConnections, int maxPerRoute) {
+    ConnectionConfig connectionConfig = ConnectionConfig.custom()
+      .setCharset(StandardCharsets.UTF_8)
+      .build();
 
-    params.setLongParameter(ClientPNames.CONN_MANAGER_TIMEOUT, timeout);
+    RequestConfig requestConfig = RequestConfig.custom()
+      .setSocketTimeout(timeout)
+      .setConnectTimeout(timeout)
+      .setConnectionRequestTimeout(timeout)
+      .build();
 
-    SchemeRegistry schemeRegistry = new SchemeRegistry();
-    schemeRegistry.register(new Scheme(HTTP_PROTOCOL, HTTP_PORT, PlainSocketFactory.getSocketFactory()));
-    schemeRegistry.register(new Scheme(HTTPS_PROTOCOL, HTTPS_PORT, SSLSocketFactory.getSocketFactory()));
+    SSLContext sslcontext = SSLContexts.createSystemDefault();
 
-    PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager(schemeRegistry);
+    Registry registry = RegistryBuilder.create()
+      .register("http", PlainConnectionSocketFactory.INSTANCE)
+      .register("https", new SSLConnectionSocketFactory(sslcontext))
+      .build();
+
+    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(registry);
     connectionManager.setMaxTotal(maxConnections);
     connectionManager.setDefaultMaxPerRoute(maxPerRoute);
-    return new DefaultHttpClient(connectionManager, params);
-  }
+    connectionManager.setDefaultConnectionConfig(connectionConfig);
 
-
-  /**
-   * Parses a RFC2616 compliant date string such as used in http headers.
-   * 
-   * @see <a href="http://tools.ietf.org/html/rfc2616#section-3.3">RFC 2616</a> specification.
-   *      example:
-   *      Wed, 21 Jul 2010 22:37:31 GMT
-   * @param rfcDate RFC2616 compliant date string
-   * @return the parsed date or null if it cannot be parsed
-   */
-  public static Date parseHeaderDate(String rfcDate) {
-    try {
-      if (rfcDate != null) {
-        // as its not thread safe we create a new instance each time
-        return new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(rfcDate);
+    RedirectStrategy redirectStrategy = new DefaultRedirectStrategy() {
+      public boolean isRedirected(HttpRequest request, HttpResponse response, HttpContext context) throws ProtocolException {
+        return super.isRedirected(request, response, context)
+          || (response.getStatusLine().getStatusCode() == 308
+          && isRedirectable(request.getRequestLine().getMethod()));
       }
-    } catch (ParseException e) {
-      LOG.debug("Can't parse RFC2616 date");
-    }
-    return null;
+    };
+
+    final String userAgent = String.format("GBIF-HttpClient/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
+      GBIF_VERSION, JAVA_VERSION, timeout, maxConnections, maxPerRoute);
+
+    return HttpClientBuilder.create()
+      .setRedirectStrategy(redirectStrategy)
+      .setDefaultRequestConfig(requestConfig)
+      .setConnectionManager(connectionManager)
+      .setUserAgent(userAgent)
+      .build();
   }
 
   public static String responseAsString(HttpResponse response) {
@@ -252,25 +305,25 @@ public class HttpUtil {
         content = EntityUtils.toString(entity);
         EntityUtils.consume(entity);
       } catch (org.apache.http.ParseException e) {
-        LOG.error("ParseException consuming http response into string", e);
+        LOG.error("ParseException consuming HTTP response into string", e);
       } catch (IOException e) {
-        LOG.error("IOException consuming http response into string", e);
+        LOG.error("IOException consuming HTTP response into string", e);
       }
     }
     return content;
   }
 
   /**
-   * Creates a http entity suitable for POSTs that encodes a single string in utf8.
-   * 
+   * Creates a HTTP entity suitable for POSTs that encodes a single string in UTF-8.
+   *
    * @param data to encode
    */
   public static HttpEntity stringEntity(String data) throws UnsupportedEncodingException {
-    return new StringEntity(data, UTF_8);
+    return new StringEntity(data, StandardCharsets.UTF_8);
   }
 
   /**
-   * Whether a request has succeeded, i.e.: 200 response code
+   * Whether a request has succeeded,  e.g. 200 response code
    */
   public static boolean success(Response resp) {
     return resp != null && success(resp.getStatusLine());
@@ -299,7 +352,7 @@ public class HttpUtil {
    * Executes a generic DELETE request.
    */
   public Response delete(String url, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
-    LOG.info("Http delete to {}", url);
+    LOG.info("HTTP DELETE to {}", url);
     HttpDelete delete = new HttpDelete(url);
     HttpContext authContext = buildContext(url, credentials);
     CloseableHttpResponse response = client.execute(delete, authContext);
@@ -362,7 +415,7 @@ public class HttpUtil {
    */
   public String downloadIfChanged(URL url, Date lastModified) throws IOException {
     Map<String, String> header = new HashMap<String, String>(1);
-    header.put(MODIFIED_SINCE, DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
+    header.put(HttpHeaders.IF_MODIFIED_SINCE, DateUtils.formatDate(lastModified));
 
     try {
       Response resp = get(url.toString(), header, null);
@@ -377,9 +430,9 @@ public class HttpUtil {
   }
 
   /**
-   * Downloads a url to a file if its modified since the date given.
-   * Updates the last modified file property to reflect the last servers modified http header.
-   * 
+   * Downloads a URL to a file if its modified since the date given.
+   * Updates the last modified file property to reflect the server's last-modified HTTP header.
+   *
    * @param downloadTo file to download to
    * @return true if changed or false if unmodified since lastModified
    */
@@ -390,7 +443,7 @@ public class HttpUtil {
   }
 
   /**
-   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
+   * Downloads a URL to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * since the last download.
    */
   public boolean downloadIfChanged(URL url, File downloadTo) throws IOException {
@@ -399,9 +452,9 @@ public class HttpUtil {
   }
 
   /**
-   * Downloads a url to a file if its modified since the date given.
-   * Updates the last modified file property to reflect the last servers modified http header.
-   * 
+   * Downloads a URL to a file if its modified since the date given.
+   * Updates the last modified file property to reflect the server's last-modified HTTP header.
+   *
    * @param downloadTo file to download to
    * @return true if changed or false if unmodified since lastModified
    */
@@ -412,8 +465,8 @@ public class HttpUtil {
     // prepare conditional GET request headers
     if (lastModified != null) {
       // DateFormatUtils is threadsafe
-      get.addHeader(MODIFIED_SINCE, DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
-      LOG.debug("Conditional GET: {}", DateFormatUtils.SMTP_DATETIME_FORMAT.format(lastModified));
+      get.addHeader(HttpHeaders.IF_MODIFIED_SINCE, DateUtils.formatDate(lastModified));
+      LOG.debug("Conditional GET: {}", DateUtils.formatDate(lastModified));
     }
 
     // execute
@@ -442,9 +495,9 @@ public class HttpUtil {
     HttpEntity entity = response.getEntity();
     if (entity != null) {
       Date serverModified = null;
-      Header modHeader = response.getFirstHeader(LAST_MODIFIED);
+      Header modHeader = response.getFirstHeader(HttpHeaders.LAST_MODIFIED);
       if (modHeader != null) {
-        serverModified = parseHeaderDate(modHeader.getValue());
+        serverModified = DateUtils.parseDate(modHeader.getValue());
       }
 
       // copy stream to local file
@@ -458,7 +511,7 @@ public class HttpUtil {
       } finally {
         fos.close();
       }
-      // update last modified of file with http header date from server
+      // update last modified of file with HTTP header date from server
       if (serverModified != null) {
         downloadTo.setLastModified(serverModified.getTime());
       }
@@ -466,10 +519,10 @@ public class HttpUtil {
   }
 
   /**
-   * Downloads a url to a local file using conditional GET, i.e. only downloading the file again if it has been changed
+   * Downloads a URL to a local file using conditional GET, i.e. only downloading the file again if it has been changed
    * on the filesystem since the last download.
-   * 
-   * @param url url to download
+   *
+   * @param url URL to download
    * @param downloadTo file to download into and used to get the last modified date from
    */
   public StatusLine downloadIfModifiedSince(final URL url, final File downloadTo) throws IOException {
@@ -511,7 +564,7 @@ public class HttpUtil {
   public Response get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
     throws IOException, URISyntaxException {
     HttpGet get = new HttpGet(url);
-    // http header
+    // HTTP header
     if (headers != null) {
       for (Map.Entry<String, String> header : headers.entrySet()) {
         get.addHeader(StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
@@ -525,7 +578,7 @@ public class HttpUtil {
       HttpEntity entity = response.getEntity();
       if (entity != null) {
         // Adding a default charset in case it is not found
-        result.content = EntityUtils.toString(entity, UTF_8);
+        result.content = EntityUtils.toString(entity, StandardCharsets.UTF_8);
       }
     } finally {
       closeQuietly(response);
@@ -624,7 +677,7 @@ public class HttpUtil {
       try {
         resp.close();
       } catch (IOException e) {
-        LOG.debug("Failed to close http response", e);
+        LOG.debug("Failed to close HTTP response", e);
       }
     }
   }
