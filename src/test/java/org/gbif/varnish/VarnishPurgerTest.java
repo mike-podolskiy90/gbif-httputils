@@ -1,104 +1,79 @@
 package org.gbif.varnish;
 
-import java.io.IOException;
-import java.net.URI;
-
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.HttpContext;
+import org.gbif.utils.HttpUtil;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static junit.framework.TestCase.assertEquals;
-import static org.mockito.Mockito.mock;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Test VarnishPurger generated URI and Http headers
+ * Test VarnishPurger generated URI and HTTP headers
  */
 public class VarnishPurgerTest {
 
-  private static final String API_BASEURL = "http://api.gbif-dev.org/v1/";
+  private static final String API_BASEURL = "http://localhost:13823/";
 
-  /**
-   * Mock HttpClient to intercept the uri and headers without sending them.
-   */
-  private class MockCloseableHttpClientTest extends org.apache.http.impl.client.CloseableHttpClient {
+  private static HttpServer server;
+  private static String method;
+  private static URI requestUri;
+  private static Headers headers;
 
-    private String uri;
-    private Header[] headers;
-
+  static class TestHandler implements HttpHandler {
     @Override
-    public HttpParams getParams() {
-      return null;
+    public void handle(HttpExchange t) throws IOException {
+      method = t.getRequestMethod();
+      requestUri = t.getRequestURI();
+      headers = t.getRequestHeaders();
+      t.sendResponseHeaders(204, -1);
     }
+  }
 
-    @Override
-    public ClientConnectionManager getConnectionManager() {
-      return null;
-    }
+  @BeforeClass
+  public static void before() throws Exception {
+    server = HttpServer.create(new InetSocketAddress(13823), 0);
+    server.createContext("/", new TestHandler());
+    server.setExecutor(null);
+    server.start();
+  }
 
-    @Override
-    public void close() throws IOException {
-
-    }
-
-    @Override
-    protected CloseableHttpResponse doExecute(HttpHost target, HttpRequest request, HttpContext context) throws IOException, ClientProtocolException {
-      uri = request.getRequestLine().getUri();
-      headers = request.getAllHeaders();
-
-      //mock it
-      CloseableHttpResponse response = mock(CloseableHttpResponse.class);
-      return response;
-    }
-
-    public String getUri() {
-      return uri;
-    }
-
-    public Header[] getHeaders() {
-      return headers;
-    }
-
-    public String getFirstHeaderValue(String name) {
-      for (Header header : headers) {
-        if (name.equals(header.getName()))
-          return header.getValue();
-      }
-      return null;
-    }
-
+  @AfterClass
+  public static void after() {
+    server.stop(0);
   }
 
   @Test
   public void testPurge() {
-    MockCloseableHttpClientTest mockHttClient = new MockCloseableHttpClientTest();
-    VarnishPurger purger = new VarnishPurger(mockHttClient, URI.create(API_BASEURL));
+    VarnishPurger purger = new VarnishPurger(HttpUtil.newSinglethreadedClient(5), URI.create(API_BASEURL));
     purger.purge("occurrence/15");
-    assertEquals(API_BASEURL + "occurrence/15", mockHttClient.getUri());
+    assertEquals("PURGE", method);
+    assertEquals("/occurrence/15", requestUri.toString());
 
     purger.purge("/occurrence/15");
-    assertEquals(API_BASEURL + "occurrence/15", mockHttClient.getUri());
+    assertEquals("/occurrence/15", requestUri.toString());
   }
 
   @Test
   public void testBan() {
-    MockCloseableHttpClientTest mockHttClient = new MockCloseableHttpClientTest();
-
-    VarnishPurger purger = new VarnishPurger(mockHttClient, URI.create(API_BASEURL));
+    VarnishPurger purger = new VarnishPurger(HttpUtil.newSinglethreadedClient(5), URI.create(API_BASEURL));
     purger.ban("directory/*");
 
-    assertEquals("/v1/directory/*", mockHttClient.getFirstHeaderValue(HttpBan.BAN_HEADER));
-    assertEquals(API_BASEURL, mockHttClient.getUri());
+    assertEquals("BAN", method);
+    assertEquals("/", requestUri.toString());
+    assertEquals("/directory/*", headers.getFirst(HttpBan.BAN_HEADER));
 
-    //test no trailing slash
-    purger = new VarnishPurger(mockHttClient, URI.create(StringUtils.removeEnd(API_BASEURL, "/")));
+    // test no trailing slash
+    purger = new VarnishPurger(HttpUtil.newSinglethreadedClient(5), URI.create(StringUtils.removeEnd(API_BASEURL, "/")));
     purger.ban("/directory/*");
-    assertEquals("/v1/directory/*", mockHttClient.getFirstHeaderValue(HttpBan.BAN_HEADER));
+    assertEquals("/directory/*", headers.getFirst(HttpBan.BAN_HEADER));
   }
 }

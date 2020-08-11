@@ -2,27 +2,19 @@ package org.gbif.varnish;
 
 import java.net.URI;
 
-import org.apache.http.annotation.Contract;
-import org.apache.http.annotation.ThreadingBehavior;
-import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.apache.hc.core5.annotation.Contract;
+import org.apache.hc.core5.annotation.ThreadingBehavior;
 
 /**
- * The HTTP PURGE method is used by varnish to flush its cache via http.
+ * The HTTP PURGE method is used by Varnish to flush its cache via HTTP.
  */
 @Contract(threading = ThreadingBehavior.UNSAFE)
-public class HttpPurge extends HttpRequestBase {
+public class HttpPurge extends HttpUriRequestBase {
 
   public static final String METHOD_NAME = "PURGE";
 
-
   public HttpPurge(final URI uri) {
-    super();
-    setURI(uri);
+    super(METHOD_NAME, uri);
   }
-
-  @Override
-  public String getMethod() {
-    return METHOD_NAME;
-  }
-
 }

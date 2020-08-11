@@ -3,19 +3,19 @@ package org.gbif.varnish;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.util.Args;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Varnish provides two main ways of invalidating its cache: PURGE and BAN.
  * PURGE truly frees the cache, but only works on individual resource URLs while BANs work with regular expressions
- * and can banRegex entire subresources from being served. BANs do not remove the object from the varnish memory though.
+ * and can banRegex entire subresources from being served. BANs do not remove the object from the Varnish memory though.
  *
  * @see <h ref="https://www.varnish-software.com/static/book/Cache_invalidation.html">Varnish Book</h>
  */
@@ -29,13 +29,8 @@ public class VarnishPurger {
   //path represents the part after the authority (domain and extension)
   private final String apiPath;
 
-
-
-  private static final Joiner PATH_JOINER = Joiner.on("/").skipNulls();
-  private static final Joiner PIPE_JOINER = Joiner.on("|").skipNulls();
-
   public VarnishPurger(CloseableHttpClient client, URI apiBaseUrl) {
-    Preconditions.checkArgument(apiBaseUrl.isAbsolute(), "apiBaseUrl must be absolute");
+    Args.check(apiBaseUrl.isAbsolute(), "apiBaseUrl must be absolute");
 
     this.client = client;
     this.apiBaseUrl = apiBaseUrl;
@@ -53,11 +48,11 @@ public class VarnishPurger {
     if (keys.size() == 1) {
       return keys.iterator().next().toString();
     }
-    return "(" + PIPE_JOINER.join(keys) + ")";
+    return "(" + String.join("|", keys.stream().map(Object::toString).collect(Collectors.toSet())) + ")";
   }
 
   public static String path(String ... parts) {
-    return PATH_JOINER.join(parts);
+    return String.join("/", parts);
   }
 
   /**
@@ -65,7 +60,7 @@ public class VarnishPurger {
    * @param path relative to the API base URL (apiBaseUrl)
    */
   public void purge(String path) {
-    Preconditions.checkNotNull(path, "path can not be null");
+    Args.notNull(path, "path can not be null");
     URI uri = URI.create(String.format("%s/%s", apiBaseUrlStr, StringUtils.removeStart(path, "/")));
     try {
       CloseableHttpResponse resp = client.execute(new HttpPurge(uri));
@@ -80,7 +75,7 @@ public class VarnishPurger {
    * @param regex regex representing the path(s) relative to the API base URL (apiBaseUrl)
    */
   public void ban(String regex) {
-    Preconditions.checkNotNull(regex, "regex can not be null");
+    Args.notNull(regex, "regex can not be null");
     regex = String.format("%s/%s", apiPath, StringUtils.removeStart(regex, "/"));
     try {
       CloseableHttpResponse resp = client.execute(new HttpBan(apiBaseUrl, regex));
