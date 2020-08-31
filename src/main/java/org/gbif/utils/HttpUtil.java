@@ -86,10 +86,13 @@ import java.util.Map;
  */
 public class HttpUtil {
 
+  static final String GBIF_NAME = "null".equals(HttpUtil.class.getPackage().getName())
+      ? "org.gbif.utils"
+      : HttpUtil.class.getPackage().getName().replace("gbif", "GBIF");
   static final String GBIF_VERSION = HttpUtil.class.getPackage().getImplementationVersion() == null
       ? "development"
       : HttpUtil.class.getPackage().getImplementationVersion();
-  static final String JAVA_VERSION = Runtime.class.getPackage().getImplementationVersion();
+  static final String JAVA_VERSION = System.getProperty("java.version");
 
   /**
    * An {@link org.apache.http.HttpResponse} wrapper exposing limited fields.
@@ -234,10 +237,12 @@ public class HttpUtil {
       }
     };
 
-    final String userAgent = String.format("GBIF-HttpClient/%s (Java/%s; S-%d; +https://www.gbif.org/)",
-      GBIF_VERSION, JAVA_VERSION, timeout);
+    final String userAgent = String.format("%s/%s (Java/%s; S-%d; +https://www.gbif.org/)",
+      GBIF_NAME, GBIF_VERSION, JAVA_VERSION, timeout);
 
     return HttpClientBuilder.create()
+      // Retain compressed content, e.g. a tar.gz archive we download
+      .disableContentCompression()
       .setRedirectStrategy(redirectStrategy)
       .setDefaultRequestConfig(requestConfig)
       .setConnectionManager(connectionManager)
@@ -286,10 +291,12 @@ public class HttpUtil {
       }
     };
 
-    final String userAgent = String.format("GBIF-HttpClient/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
-      GBIF_VERSION, JAVA_VERSION, timeout, maxConnections, maxPerRoute);
+    final String userAgent = String.format("%s/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
+      GBIF_NAME, GBIF_VERSION, JAVA_VERSION, timeout, maxConnections, maxPerRoute);
 
     return HttpClientBuilder.create()
+      // Retain compressed content, e.g. a tar.gz archive we download
+      .disableContentCompression()
       .setRedirectStrategy(redirectStrategy)
       .setDefaultRequestConfig(requestConfig)
       .setConnectionManager(connectionManager)
