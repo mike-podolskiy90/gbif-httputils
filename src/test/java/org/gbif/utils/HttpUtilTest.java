@@ -17,23 +17,22 @@ package org.gbif.utils;
 
 import org.apache.http.StatusLine;
 import org.apache.http.client.utils.DateUtils;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.text.ParseException;
 import java.util.Date;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class HttpUtilTest {
 
   @Test
-  public void testClientRedirect() throws ParseException, IOException {
+  public void testClientRedirect() throws IOException {
     HttpUtil util = new HttpUtil(HttpUtil.newSinglethreadedClient(10_000));
     File tmp = File.createTempFile("httputils", "test");
     tmp.deleteOnExit();
@@ -62,7 +61,7 @@ public class HttpUtilTest {
    * @see <a href="http://dev.gbif.org/issues/browse/GBIFCOM-77">GBIFCOM-77</a>
    */
   @Test
-  public void testConditionalGet() throws ParseException, IOException {
+  public void testConditionalGet() throws IOException {
     HttpUtil util = new HttpUtil();
     // We know for sure it has changed since this date
     Date last = DateUtils.parseDate("Wed, 03 Aug 2009 22:37:31 GMT");
@@ -80,8 +79,8 @@ public class HttpUtilTest {
    * Ignoring this test as its only a manual one to run to check the IPT!
    */
   @Test
-  @Ignore
-  public void testIptConditionalGet() throws ParseException, IOException {
+  @Disabled("Manual test")
+  public void testIptConditionalGet() throws IOException {
     HttpUtil util = new HttpUtil();
 
     Date beforeChange = DateUtils.parseDate("Wed, 03 Aug 2009 22:37:31 GMT");
