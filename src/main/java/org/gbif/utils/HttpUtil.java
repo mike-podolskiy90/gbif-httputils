@@ -1,16 +1,37 @@
-/***************************************************************************
- * Copyright 2020 Global Biodiversity Information Facility Secretariat
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- * http://www.apache.org/licenses/LICENSE-2.0
+/*
+ * Copyright 2021 Global Biodiversity Information Facility (GBIF)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- ***************************************************************************/
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.gbif.utils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import javax.net.ssl.SSLContext;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -61,29 +82,13 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
 /**
  * A utility class for HTTP related functions.
  * <p/>
  * This class itself is thread safe. If you require thread safety please make sure to use a thread safe HTTP client as
  * the underlying client. The ones created here in the static builder methods or via the default constructor are.
  */
+@SuppressWarnings("unused")
 public class HttpUtil {
 
   static final String GBIF_NAME = "null".equals(HttpUtil.class.getPackage().getName())
@@ -180,7 +185,7 @@ public class HttpUtil {
    * @param kvp the parameter map to encode
    */
   public static HttpEntity map2Entity(Map<String, String> kvp) {
-    List<NameValuePair> formparams = new ArrayList<NameValuePair>(kvp.size());
+    List<NameValuePair> formparams = new ArrayList<>(kvp.size());
     for (Map.Entry<String, String> entry : kvp.entrySet()) {
       formparams.add(new BasicNameValuePair(entry.getKey(), entry.getValue()));
     }
@@ -195,7 +200,7 @@ public class HttpUtil {
    * @param data the value to encode
    */
   public static HttpEntity map2Entity(String key, String data) {
-    List<NameValuePair> formparams = new ArrayList<NameValuePair>(1);
+    List<NameValuePair> formparams = new ArrayList<>(1);
     formparams.add(new BasicNameValuePair(key, data));
     return new UrlEncodedFormEntity(formparams, StandardCharsets.UTF_8);
   }
@@ -230,6 +235,7 @@ public class HttpUtil {
     connectionManager.setDefaultConnectionConfig(connectionConfig);
 
     RedirectStrategy redirectStrategy = new DefaultRedirectStrategy() {
+      @Override
       public boolean isRedirected(HttpRequest request, HttpResponse response, HttpContext context) throws ProtocolException {
         return super.isRedirected(request, response, context)
           || (response.getStatusLine().getStatusCode() == 308
@@ -284,6 +290,7 @@ public class HttpUtil {
     connectionManager.setDefaultConnectionConfig(connectionConfig);
 
     RedirectStrategy redirectStrategy = new DefaultRedirectStrategy() {
+      @Override
       public boolean isRedirected(HttpRequest request, HttpResponse response, HttpContext context) throws ProtocolException {
         return super.isRedirected(request, response, context)
           || (response.getStatusLine().getStatusCode() == 308
@@ -512,11 +519,8 @@ public class HttpUtil {
       if (downloadTo.isFile()) {
         downloadTo.delete();
       }
-      OutputStream fos = new FileOutputStream(downloadTo, false);
-      try {
+      try (OutputStream fos = new FileOutputStream(downloadTo, false)) {
         entity.writeTo(fos);
-      } finally {
-        fos.close();
       }
       // update last modified of file with HTTP header date from server
       if (serverModified != null) {
