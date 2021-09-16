@@ -40,5 +40,4 @@ public class HttpBan extends HttpRequestBase {
   public String getMethod() {
     return METHOD_NAME;
   }
-
 }

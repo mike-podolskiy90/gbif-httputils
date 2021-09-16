@@ -69,7 +69,8 @@ public class HttpUtilTest {
     URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
     assertTrue(util.downloadIfChanged(url, last, tmp));
 
-    // Verify that it does not download with a conditional get of 5 minutes ago, in case of clock skew.
+    // Verify that it does not download with a conditional get of 5 minutes ago, in case of clock
+    // skew.
     Date nearlyNow = new Date(System.currentTimeMillis() - 1000 * 60 * 5);
     assertFalse(util.downloadIfChanged(url, nearlyNow, tmp));
   }

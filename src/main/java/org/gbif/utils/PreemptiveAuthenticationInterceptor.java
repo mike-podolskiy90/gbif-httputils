@@ -34,17 +34,20 @@ import org.slf4j.LoggerFactory;
 
 public class PreemptiveAuthenticationInterceptor implements HttpRequestInterceptor {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PreemptiveAuthenticationInterceptor.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(PreemptiveAuthenticationInterceptor.class);
 
   // registry currently requires Preemptive authentication
   // add preemptive authentication via this interceptor
 
   @Override
-  public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
+  public void process(final HttpRequest request, final HttpContext context)
+      throws HttpException, IOException {
     LOG.debug(request.getRequestLine().toString());
 
     AuthState authState = (AuthState) context.getAttribute(HttpClientContext.TARGET_AUTH_STATE);
-    CredentialsProvider credsProvider = (CredentialsProvider) context.getAttribute(HttpClientContext.CREDS_PROVIDER);
+    CredentialsProvider credsProvider =
+        (CredentialsProvider) context.getAttribute(HttpClientContext.CREDS_PROVIDER);
     HttpHost targetHost = (HttpHost) context.getAttribute(HttpCoreContext.HTTP_TARGET_HOST);
 
     // If not auth scheme has been initialized yet

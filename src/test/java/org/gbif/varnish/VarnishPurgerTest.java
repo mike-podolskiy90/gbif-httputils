@@ -42,7 +42,8 @@ public class VarnishPurgerTest {
   /**
    * Mock HttpClient to intercept the uri and headers without sending them.
    */
-  private class MockCloseableHttpClientTest extends org.apache.http.impl.client.CloseableHttpClient {
+  private class MockCloseableHttpClientTest
+      extends org.apache.http.impl.client.CloseableHttpClient {
 
     private String uri;
     private Header[] headers;
@@ -58,16 +59,16 @@ public class VarnishPurgerTest {
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() throws IOException {}
 
     @Override
-    protected CloseableHttpResponse doExecute(HttpHost target, HttpRequest request, HttpContext context) throws IOException, ClientProtocolException {
+    protected CloseableHttpResponse doExecute(
+        HttpHost target, HttpRequest request, HttpContext context)
+        throws IOException, ClientProtocolException {
       uri = request.getRequestLine().getUri();
       headers = request.getAllHeaders();
 
-      //mock it
+      // mock it
       CloseableHttpResponse response = mock(CloseableHttpResponse.class);
       return response;
     }
@@ -82,12 +83,10 @@ public class VarnishPurgerTest {
 
     public String getFirstHeaderValue(String name) {
       for (Header header : headers) {
-        if (name.equals(header.getName()))
-          return header.getValue();
+        if (name.equals(header.getName())) return header.getValue();
       }
       return null;
     }
-
   }
 
   @Test
@@ -111,7 +110,7 @@ public class VarnishPurgerTest {
     assertEquals("/v1/directory/*", mockHttClient.getFirstHeaderValue(HttpBan.BAN_HEADER));
     assertEquals(API_BASEURL, mockHttClient.getUri());
 
-    //test no trailing slash
+    // test no trailing slash
     purger = new VarnishPurger(mockHttClient, URI.create(StringUtils.removeEnd(API_BASEURL, "/")));
     purger.ban("/directory/*");
     assertEquals("/v1/directory/*", mockHttClient.getFirstHeaderValue(HttpBan.BAN_HEADER));

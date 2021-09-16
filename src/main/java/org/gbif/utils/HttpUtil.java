@@ -91,12 +91,14 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class HttpUtil {
 
-  static final String GBIF_NAME = "null".equals(HttpUtil.class.getPackage().getName())
-      ? "org.gbif.utils"
-      : HttpUtil.class.getPackage().getName().replace("gbif", "GBIF");
-  static final String GBIF_VERSION = HttpUtil.class.getPackage().getImplementationVersion() == null
-      ? "development"
-      : HttpUtil.class.getPackage().getImplementationVersion();
+  static final String GBIF_NAME =
+      "null".equals(HttpUtil.class.getPackage().getName())
+          ? "org.gbif.utils"
+          : HttpUtil.class.getPackage().getName().replace("gbif", "GBIF");
+  static final String GBIF_VERSION =
+      HttpUtil.class.getPackage().getImplementationVersion() == null
+          ? "development"
+          : HttpUtil.class.getPackage().getImplementationVersion();
   static final String JAVA_VERSION = System.getProperty("java.version");
 
   /**
@@ -160,7 +162,6 @@ public class HttpUtil {
     public HeaderIterator headerIterator(String name) {
       return response.headerIterator(name);
     }
-
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpUtil.class);
@@ -175,7 +176,8 @@ public class HttpUtil {
   }
 
   public static UsernamePasswordCredentials credentials(String username, String password) {
-    return new UsernamePasswordCredentials(StringUtils.trimToEmpty(username), StringUtils.trimToEmpty(password));
+    return new UsernamePasswordCredentials(
+        StringUtils.trimToEmpty(username), StringUtils.trimToEmpty(password));
   }
 
   /**
@@ -214,46 +216,53 @@ public class HttpUtil {
    * @param timeout in milliseconds
    */
   public static CloseableHttpClient newSinglethreadedClient(int timeout) {
-    ConnectionConfig connectionConfig = ConnectionConfig.custom()
-      .setCharset(StandardCharsets.UTF_8)
-      .build();
+    ConnectionConfig connectionConfig =
+        ConnectionConfig.custom().setCharset(StandardCharsets.UTF_8).build();
 
-    RequestConfig requestConfig = RequestConfig.custom()
-      .setSocketTimeout(timeout)
-      .setConnectTimeout(timeout)
-      .setConnectionRequestTimeout(timeout)
-      .build();
+    RequestConfig requestConfig =
+        RequestConfig.custom()
+            .setSocketTimeout(timeout)
+            .setConnectTimeout(timeout)
+            .setConnectionRequestTimeout(timeout)
+            .build();
 
     SSLContext sslcontext = SSLContexts.createSystemDefault();
 
-    Registry registry = RegistryBuilder.create()
-      .register("http", PlainConnectionSocketFactory.INSTANCE)
-      .register("https", new SSLConnectionSocketFactory(sslcontext))
-      .build();
+    Registry registry =
+        RegistryBuilder.create()
+            .register("http", PlainConnectionSocketFactory.INSTANCE)
+            .register("https", new SSLConnectionSocketFactory(sslcontext))
+            .build();
 
-    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(registry);
+    PoolingHttpClientConnectionManager connectionManager =
+        new PoolingHttpClientConnectionManager(registry);
     connectionManager.setDefaultConnectionConfig(connectionConfig);
 
-    RedirectStrategy redirectStrategy = new DefaultRedirectStrategy() {
-      @Override
-      public boolean isRedirected(HttpRequest request, HttpResponse response, HttpContext context) throws ProtocolException {
-        return super.isRedirected(request, response, context)
-          || (response.getStatusLine().getStatusCode() == 308
-          && isRedirectable(request.getRequestLine().getMethod()));
-      }
-    };
+    RedirectStrategy redirectStrategy =
+        new DefaultRedirectStrategy() {
+          @Override
+          public boolean isRedirected(
+              HttpRequest request, HttpResponse response, HttpContext context)
+              throws ProtocolException {
+            return super.isRedirected(request, response, context)
+                || (response.getStatusLine().getStatusCode() == 308
+                    && isRedirectable(request.getRequestLine().getMethod()));
+          }
+        };
 
-    final String userAgent = String.format("%s/%s (Java/%s; S-%d; +https://www.gbif.org/)",
-      GBIF_NAME, GBIF_VERSION, JAVA_VERSION, timeout);
+    final String userAgent =
+        String.format(
+            "%s/%s (Java/%s; S-%d; +https://www.gbif.org/)",
+            GBIF_NAME, GBIF_VERSION, JAVA_VERSION, timeout);
 
     return HttpClientBuilder.create()
-      // Retain compressed content, e.g. a tar.gz archive we download
-      .disableContentCompression()
-      .setRedirectStrategy(redirectStrategy)
-      .setDefaultRequestConfig(requestConfig)
-      .setConnectionManager(connectionManager)
-      .setUserAgent(userAgent)
-      .build();
+        // Retain compressed content, e.g. a tar.gz archive we download
+        .disableContentCompression()
+        .setRedirectStrategy(redirectStrategy)
+        .setDefaultRequestConfig(requestConfig)
+        .setConnectionManager(connectionManager)
+        .setUserAgent(userAgent)
+        .build();
   }
 
   /**
@@ -266,49 +275,57 @@ public class HttpUtil {
    * @param maxConnections maximum allowed connections in total
    * @param maxPerRoute maximum allowed connections per route
    */
-  public static CloseableHttpClient newMultithreadedClient(int timeout, int maxConnections, int maxPerRoute) {
-    ConnectionConfig connectionConfig = ConnectionConfig.custom()
-      .setCharset(StandardCharsets.UTF_8)
-      .build();
+  public static CloseableHttpClient newMultithreadedClient(
+      int timeout, int maxConnections, int maxPerRoute) {
+    ConnectionConfig connectionConfig =
+        ConnectionConfig.custom().setCharset(StandardCharsets.UTF_8).build();
 
-    RequestConfig requestConfig = RequestConfig.custom()
-      .setSocketTimeout(timeout)
-      .setConnectTimeout(timeout)
-      .setConnectionRequestTimeout(timeout)
-      .build();
+    RequestConfig requestConfig =
+        RequestConfig.custom()
+            .setSocketTimeout(timeout)
+            .setConnectTimeout(timeout)
+            .setConnectionRequestTimeout(timeout)
+            .build();
 
     SSLContext sslcontext = SSLContexts.createSystemDefault();
 
-    Registry registry = RegistryBuilder.create()
-      .register("http", PlainConnectionSocketFactory.INSTANCE)
-      .register("https", new SSLConnectionSocketFactory(sslcontext))
-      .build();
+    Registry registry =
+        RegistryBuilder.create()
+            .register("http", PlainConnectionSocketFactory.INSTANCE)
+            .register("https", new SSLConnectionSocketFactory(sslcontext))
+            .build();
 
-    PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(registry);
+    PoolingHttpClientConnectionManager connectionManager =
+        new PoolingHttpClientConnectionManager(registry);
     connectionManager.setMaxTotal(maxConnections);
     connectionManager.setDefaultMaxPerRoute(maxPerRoute);
     connectionManager.setDefaultConnectionConfig(connectionConfig);
 
-    RedirectStrategy redirectStrategy = new DefaultRedirectStrategy() {
-      @Override
-      public boolean isRedirected(HttpRequest request, HttpResponse response, HttpContext context) throws ProtocolException {
-        return super.isRedirected(request, response, context)
-          || (response.getStatusLine().getStatusCode() == 308
-          && isRedirectable(request.getRequestLine().getMethod()));
-      }
-    };
+    RedirectStrategy redirectStrategy =
+        new DefaultRedirectStrategy() {
+          @Override
+          public boolean isRedirected(
+              HttpRequest request, HttpResponse response, HttpContext context)
+              throws ProtocolException {
+            return super.isRedirected(request, response, context)
+                || (response.getStatusLine().getStatusCode() == 308
+                    && isRedirectable(request.getRequestLine().getMethod()));
+          }
+        };
 
-    final String userAgent = String.format("%s/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
-      GBIF_NAME, GBIF_VERSION, JAVA_VERSION, timeout, maxConnections, maxPerRoute);
+    final String userAgent =
+        String.format(
+            "%s/%s (Java/%s; M-%d-%d-%d; +https://www.gbif.org/)",
+            GBIF_NAME, GBIF_VERSION, JAVA_VERSION, timeout, maxConnections, maxPerRoute);
 
     return HttpClientBuilder.create()
-      // Retain compressed content, e.g. a tar.gz archive we download
-      .disableContentCompression()
-      .setRedirectStrategy(redirectStrategy)
-      .setDefaultRequestConfig(requestConfig)
-      .setConnectionManager(connectionManager)
-      .setUserAgent(userAgent)
-      .build();
+        // Retain compressed content, e.g. a tar.gz archive we download
+        .disableContentCompression()
+        .setRedirectStrategy(redirectStrategy)
+        .setDefaultRequestConfig(requestConfig)
+        .setConnectionManager(connectionManager)
+        .setUserAgent(userAgent)
+        .build();
   }
 
   public static String responseAsString(HttpResponse response) {
@@ -347,7 +364,8 @@ public class HttpUtil {
     return status != null && status.getStatusCode() >= 200 && status.getStatusCode() < 300;
   }
 
-  private HttpContext buildContext(String uri, UsernamePasswordCredentials credentials) throws URISyntaxException {
+  private HttpContext buildContext(String uri, UsernamePasswordCredentials credentials)
+      throws URISyntaxException {
     HttpContext authContext = new BasicHttpContext();
     if (credentials != null) {
       URI authUri = new URI(uri);
@@ -365,7 +383,8 @@ public class HttpUtil {
   /**
    * Executes a generic DELETE request.
    */
-  public Response delete(String url, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public Response delete(String url, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     LOG.info("HTTP DELETE to {}", url);
     HttpDelete delete = new HttpDelete(url);
     HttpContext authContext = buildContext(url, credentials);
@@ -416,7 +435,11 @@ public class HttpUtil {
         saveToFile(response, downloadTo);
         LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
       } else {
-        LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
+        LOG.error(
+            "Downloading {} to {} failed!: {}",
+            url,
+            downloadTo.getAbsolutePath(),
+            status.getStatusCode());
       }
     } finally {
       closeQuietly(response);
@@ -450,7 +473,6 @@ public class HttpUtil {
    * @param downloadTo file to download to
    * @return true if changed or false if unmodified since lastModified
    */
-
   public boolean downloadIfChanged(URL url, Date lastModified, File downloadTo) throws IOException {
     StatusLine status = downloadIfModifiedSince(url, lastModified, downloadTo);
     return success(status);
@@ -472,7 +494,8 @@ public class HttpUtil {
    * @param downloadTo file to download to
    * @return true if changed or false if unmodified since lastModified
    */
-  public StatusLine downloadIfModifiedSince(final URL url, final Date lastModified, final File downloadTo) throws IOException {
+  public StatusLine downloadIfModifiedSince(
+      final URL url, final Date lastModified, final File downloadTo) throws IOException {
 
     HttpGet get = new HttpGet(url.toString());
 
@@ -496,7 +519,11 @@ public class HttpUtil {
         LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
 
       } else {
-        LOG.error("Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
+        LOG.error(
+            "Downloading {} to {} failed!: {}",
+            url,
+            downloadTo.getAbsolutePath(),
+            status.getStatusCode());
       }
 
     } finally {
@@ -536,7 +563,8 @@ public class HttpUtil {
    * @param url URL to download
    * @param downloadTo file to download into and used to get the last modified date from
    */
-  public StatusLine downloadIfModifiedSince(final URL url, final File downloadTo) throws IOException {
+  public StatusLine downloadIfModifiedSince(final URL url, final File downloadTo)
+      throws IOException {
     Date lastModified = null;
     if (downloadTo.exists()) {
       lastModified = new Date(downloadTo.lastModified());
@@ -572,13 +600,15 @@ public class HttpUtil {
     return get(url, null, null);
   }
 
-  public Response get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
-    throws IOException, URISyntaxException {
+  public Response get(
+      String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     HttpGet get = new HttpGet(url);
     // HTTP header
     if (headers != null) {
       for (Map.Entry<String, String> header : headers.entrySet()) {
-        get.addHeader(StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
+        get.addHeader(
+            StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
       }
     }
     // authentication
@@ -610,26 +640,34 @@ public class HttpUtil {
   /**
    * Executes a generic POST request.
    */
-  public Response post(String uri, HttpEntity requestEntity) throws IOException, URISyntaxException {
+  public Response post(String uri, HttpEntity requestEntity)
+      throws IOException, URISyntaxException {
     return post(uri, null, null, requestEntity);
   }
 
-  public Response post(String uri, UsernamePasswordCredentials credentials, HttpEntity requestEntity)
-    throws IOException, URISyntaxException {
+  public Response post(
+      String uri, UsernamePasswordCredentials credentials, HttpEntity requestEntity)
+      throws IOException, URISyntaxException {
     return post(uri, null, credentials, requestEntity);
   }
 
-  public Response post(String uri, Map<String, String> headers, UsernamePasswordCredentials credentials)
-    throws IOException, URISyntaxException {
+  public Response post(
+      String uri, Map<String, String> headers, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     return post(uri, headers, credentials, null);
   }
 
-  public Response post(String uri, Map<String, String> headers, UsernamePasswordCredentials credentials,
-    HttpEntity requestEntity) throws IOException, URISyntaxException {
+  public Response post(
+      String uri,
+      Map<String, String> headers,
+      UsernamePasswordCredentials credentials,
+      HttpEntity requestEntity)
+      throws IOException, URISyntaxException {
     HttpPost post = new HttpPost(uri);
     if (headers != null) {
       for (Map.Entry<String, String> header : headers.entrySet()) {
-        post.addHeader(StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
+        post.addHeader(
+            StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
       }
     }
     if (requestEntity != null) {
@@ -653,15 +691,23 @@ public class HttpUtil {
   }
 
   @Deprecated
-  public Response post(String uri, HttpParams params, Map<String, String> headers,
-    UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public Response post(
+      String uri,
+      HttpParams params,
+      Map<String, String> headers,
+      UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     return post(uri, params, headers, credentials, null);
   }
 
-
   @Deprecated
-  public Response post(String uri, HttpParams params, Map<String, String> headers,
-    UsernamePasswordCredentials credentials, HttpEntity encodedEntity) throws IOException, URISyntaxException {
+  public Response post(
+      String uri,
+      HttpParams params,
+      Map<String, String> headers,
+      UsernamePasswordCredentials credentials,
+      HttpEntity encodedEntity)
+      throws IOException, URISyntaxException {
     return post(uri, headers, credentials, encodedEntity);
   }
 

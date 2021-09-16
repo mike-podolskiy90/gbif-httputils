@@ -29,7 +29,6 @@ public class HttpPurge extends HttpRequestBase {
 
   public static final String METHOD_NAME = "PURGE";
 
-
   public HttpPurge(final URI uri) {
     super();
     setURI(uri);
@@ -39,5 +38,4 @@ public class HttpPurge extends HttpRequestBase {
   public String getMethod() {
     return METHOD_NAME;
   }
-
 }

@@ -42,7 +42,7 @@ public class VarnishPurger {
   private final URI apiBaseUrl;
   private final String apiBaseUrlStr;
 
-  //path represents the part after the authority (domain and extension)
+  // path represents the part after the authority (domain and extension)
   private final String apiPath;
 
   public VarnishPurger(CloseableHttpClient client, URI apiBaseUrl) {
@@ -52,7 +52,7 @@ public class VarnishPurger {
     this.apiBaseUrl = apiBaseUrl;
     this.apiBaseUrlStr = StringUtils.removeEnd(apiBaseUrl.toString(), "/");
 
-    //make sure there is not trailing slash on apiRoot
+    // make sure there is not trailing slash on apiRoot
     this.apiPath = StringUtils.removeEnd(apiBaseUrl.getPath(), "/");
   }
 
@@ -71,7 +71,7 @@ public class VarnishPurger {
         .collect(Collectors.joining("|", "(", ")"));
   }
 
-  public static String path(String ... parts) {
+  public static String path(String... parts) {
     return String.join("/", parts);
   }
 
@@ -104,5 +104,4 @@ public class VarnishPurger {
       LOG.error("Failed to ban {}", regex, e);
     }
   }
-
 }
