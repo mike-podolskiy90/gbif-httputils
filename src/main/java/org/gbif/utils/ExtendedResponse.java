@@ -20,7 +20,6 @@ import org.apache.http.HeaderIterator;
 import org.apache.http.HttpResponse;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
-import org.apache.http.params.HttpParams;
 
 import java.util.Locale;
 

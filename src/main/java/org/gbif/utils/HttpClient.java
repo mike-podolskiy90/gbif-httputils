@@ -331,7 +331,9 @@ public class HttpClient {
 
   public ExtendedResponse post(
       final CloseableHttpClient client,
-      String uri, UsernamePasswordCredentials credentials, HttpEntity requestEntity)
+      String uri,
+      UsernamePasswordCredentials credentials,
+      HttpEntity requestEntity)
       throws IOException, URISyntaxException {
     return post(uri, null, credentials, requestEntity);
   }

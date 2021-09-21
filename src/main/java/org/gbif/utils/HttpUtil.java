@@ -149,7 +149,8 @@ public final class HttpUtil {
       int maxPerRoute,
       String userAgent,
       HttpRequestInterceptor firstInterceptor) {
-    return newClientInternal(timeout, maxConnections, maxPerRoute, userAgent, firstInterceptor, true);
+    return newClientInternal(
+        timeout, maxConnections, maxPerRoute, userAgent, firstInterceptor, true);
   }
 
   /**
@@ -199,7 +200,7 @@ public final class HttpUtil {
               throws ProtocolException {
             return super.isRedirected(request, response, context)
                 || (response.getStatusLine().getStatusCode() == 308
-                && isRedirectable(request.getRequestLine().getMethod()));
+                    && isRedirectable(request.getRequestLine().getMethod()));
           }
         };
 
