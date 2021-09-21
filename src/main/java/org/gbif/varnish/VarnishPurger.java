@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * PURGE truly frees the cache, but only works on individual resource URLs while BANs work with regular expressions
  * and can banRegex entire subresources from being served. BANs do not remove the object from the Varnish memory though.
  *
- * @see <h ref="https://www.varnish-software.com/static/book/Cache_invalidation.html">Varnish Book</h>
+ * @see <a href="https://www.varnish-software.com/static/book/Cache_invalidation.html">Varnish Book</h>
  */
 public class VarnishPurger {
   private static final Logger LOG = LoggerFactory.getLogger(VarnishPurger.class);

@@ -29,28 +29,28 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class HttpUtilTest {
+public class HttpClientTest {
 
   @Test
   public void testClientRedirect() throws IOException {
-    HttpUtil util = new HttpUtil(HttpUtil.newSinglethreadedClient(10_000));
+    HttpClient httpClient = new HttpClient(HttpUtil.newSinglethreadedClient(10_000));
     File tmp = File.createTempFile("httputils", "test");
     tmp.deleteOnExit();
     // a redirect to http://rs.gbif.org/extension/gbif/1.0/distribution.xml
-    StatusLine status = util.download("http://rs.gbif.org/terms/1.0/Distribution", tmp);
+    StatusLine status = httpClient.download("http://rs.gbif.org/terms/1.0/Distribution", tmp);
     assertTrue(HttpUtil.success(status));
 
     // assert false on 404s
-    status = util.download("https://rs.gbif.org/gbif-httputils-unit-test-404", tmp);
+    status = httpClient.download("https://rs.gbif.org/gbif-httputils-unit-test-404", tmp);
     assertFalse(HttpUtil.success(status));
     assertEquals(404, status.getStatusCode());
 
     // HTTP 307
-    status = util.download("https://httpstat.us/307", tmp);
+    status = httpClient.download("https://httpstat.us/307", tmp);
     assertTrue(HttpUtil.success(status));
 
     // HTTP 308
-    status = util.download("https://httpstat.us/308", tmp);
+    status = httpClient.download("https://httpstat.us/308", tmp);
     assertTrue(HttpUtil.success(status));
   }
 
@@ -62,17 +62,17 @@ public class HttpUtilTest {
    */
   @Test
   public void testConditionalGet() throws IOException {
-    HttpUtil util = new HttpUtil();
+    HttpClient httpClient = new HttpClient();
     // We know for sure it has changed since this date
     Date last = DateUtils.parseDate("Wed, 03 Aug 2009 22:37:31 GMT");
     File tmp = File.createTempFile("vocab", ".xml");
     URL url = new URL("http://rs.gbif.org/vocabulary/gbif/rank.xml");
-    assertTrue(util.downloadIfChanged(url, last, tmp));
+    assertTrue(httpClient.downloadIfChanged(url, last, tmp));
 
     // Verify that it does not download with a conditional get of 5 minutes ago, in case of clock
     // skew.
     Date nearlyNow = new Date(System.currentTimeMillis() - 1000 * 60 * 5);
-    assertFalse(util.downloadIfChanged(url, nearlyNow, tmp));
+    assertFalse(httpClient.downloadIfChanged(url, nearlyNow, tmp));
   }
 
   /**
@@ -82,24 +82,24 @@ public class HttpUtilTest {
   @Test
   @Disabled("Manual test")
   public void testIptConditionalGet() throws IOException {
-    HttpUtil util = new HttpUtil();
+    HttpClient httpClient = new HttpClient();
 
     Date beforeChange = DateUtils.parseDate("Wed, 03 Aug 2009 22:37:31 GMT");
     Date afterChange = DateUtils.parseDate("Wed, 15 May 2019 14:47:25 GMT");
 
     File tmp = File.createTempFile("dwca", ".zip");
     URL url = new URL("https://cloud.gbif.org/bid/archive.do?r=nzcs_introduced_fauna_suriname");
-    boolean downloaded = util.downloadIfChanged(url, beforeChange, tmp);
+    boolean downloaded = httpClient.downloadIfChanged(url, beforeChange, tmp);
     assertTrue(downloaded);
 
-    downloaded = util.downloadIfChanged(url, afterChange, tmp);
+    downloaded = httpClient.downloadIfChanged(url, afterChange, tmp);
     assertFalse(downloaded);
   }
 
   @Test
   public void testMultithreadedCommonsLogDependency() throws Exception {
-    HttpUtil util = new HttpUtil(HttpUtil.newMultithreadedClient(10_000, 10_000, 10));
-    util.get("http://rs.gbif.org/vocabulary/gbif/rank.xml");
-    util.get("https://rs.gbif.org/vocabulary/gbif/rank.xml");
+    HttpClient httpClient = new HttpClient(HttpUtil.newMultithreadedClient(10_000, 10_000, 10));
+    httpClient.get("http://rs.gbif.org/vocabulary/gbif/rank.xml");
+    httpClient.get("https://rs.gbif.org/vocabulary/gbif/rank.xml");
   }
 }

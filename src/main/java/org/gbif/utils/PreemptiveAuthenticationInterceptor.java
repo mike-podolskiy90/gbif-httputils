@@ -15,9 +15,6 @@
  */
 package org.gbif.utils;
 
-import java.io.IOException;
-
-import org.apache.http.HttpException;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
@@ -32,6 +29,7 @@ import org.apache.http.protocol.HttpCoreContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("unused")
 public class PreemptiveAuthenticationInterceptor implements HttpRequestInterceptor {
 
   private static final Logger LOG =
@@ -41,8 +39,7 @@ public class PreemptiveAuthenticationInterceptor implements HttpRequestIntercept
   // add preemptive authentication via this interceptor
 
   @Override
-  public void process(final HttpRequest request, final HttpContext context)
-      throws HttpException, IOException {
+  public void process(final HttpRequest request, final HttpContext context) {
     LOG.debug(request.getRequestLine().toString());
 
     AuthState authState = (AuthState) context.getAttribute(HttpClientContext.TARGET_AUTH_STATE);
