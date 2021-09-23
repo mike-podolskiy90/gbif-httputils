@@ -15,15 +15,15 @@
  */
 package org.gbif.utils;
 
-import org.apache.http.StatusLine;
-import org.apache.http.client.utils.DateUtils;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Date;
+
+import org.apache.http.StatusLine;
+import org.apache.http.client.utils.DateUtils;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

@@ -15,13 +15,13 @@
  */
 package org.gbif.utils;
 
+import java.util.Locale;
+
 import org.apache.http.Header;
 import org.apache.http.HeaderIterator;
 import org.apache.http.HttpResponse;
 import org.apache.http.ProtocolVersion;
 import org.apache.http.StatusLine;
-
-import java.util.Locale;
 
 /**
  * An {@link org.apache.http.HttpResponse} wrapper exposing limited fields.

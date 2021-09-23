@@ -15,6 +15,9 @@
  */
 package org.gbif.varnish;
 
+import java.io.IOException;
+import java.net.URI;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
@@ -25,9 +28,6 @@ import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HttpContext;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.net.URI;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
