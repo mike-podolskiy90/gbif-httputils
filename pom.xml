@@ -8,7 +8,7 @@
   </parent>
 
   <artifactId>gbif-httputils</artifactId>
-  <version>0.16-SNAPSHOT</version>
+  <version>1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>GBIF HttpUtils</name>
