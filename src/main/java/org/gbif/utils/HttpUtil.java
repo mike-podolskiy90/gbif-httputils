@@ -16,6 +16,8 @@
 package org.gbif.utils;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,7 @@ import javax.net.ssl.SSLContext;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
@@ -113,8 +116,15 @@ public final class HttpUtil {
    *
    * @param timeout in milliseconds
    */
-  public static CloseableHttpClient newSinglethreadedClient(int timeout) {
+  public static HttpClient newSinglethreadedClient(int timeout) {
     return newClientInternal(timeout, null, null, null, null, false);
+  }
+
+  /**
+   * This creates a new threadsafe, multithreaded HTTP client with support for HTTP and HTTPS and default values.
+   */
+  public static HttpClient newDefaultMultithreadedClient() {
+    return newMultithreadedClient(60_000, 250, 5);
   }
 
   /**
@@ -127,7 +137,7 @@ public final class HttpUtil {
    * @param maxConnections maximum allowed connections in total
    * @param maxPerRoute maximum allowed connections per route
    */
-  public static CloseableHttpClient newMultithreadedClient(
+  public static HttpClient newMultithreadedClient(
       int timeout, int maxConnections, int maxPerRoute) {
     return newClientInternal(timeout, maxConnections, maxPerRoute, null, null, true);
   }
@@ -143,7 +153,7 @@ public final class HttpUtil {
    * @param maxConnections maximum allowed connections in total
    * @param maxPerRoute maximum allowed connections per route
    */
-  public static CloseableHttpClient newMultithreadedClient(
+  public static HttpClient newMultithreadedClient(
       int timeout,
       int maxConnections,
       int maxPerRoute,
@@ -161,7 +171,7 @@ public final class HttpUtil {
    * @see HttpUtil#newMultithreadedClient(int, int, int, String, HttpRequestInterceptor)
    */
   @SuppressWarnings({"rawtypes", "unchecked"})
-  private static CloseableHttpClient newClientInternal(
+  private static HttpClient newClientInternal(
       Integer timeout,
       Integer maxConnections,
       Integer maxPerRoute,
@@ -171,7 +181,7 @@ public final class HttpUtil {
     ConnectionConfig connectionConfig =
         ConnectionConfig.custom().setCharset(StandardCharsets.UTF_8).build();
 
-    RequestConfig requestConfig =
+    RequestConfig defaultRequestConfig =
         RequestConfig.custom()
             .setSocketTimeout(timeout)
             .setConnectTimeout(timeout)
@@ -225,14 +235,16 @@ public final class HttpUtil {
       builder.addInterceptorFirst(firstInterceptor);
     }
 
-    return builder
+    CloseableHttpClient apacheHttpClient = builder
         // Retain compressed content, e.g. a tar.gz archive we download
         .disableContentCompression()
         .setRedirectStrategy(redirectStrategy)
-        .setDefaultRequestConfig(requestConfig)
+        .setDefaultRequestConfig(defaultRequestConfig)
         .setConnectionManager(connectionManager)
         .setUserAgent(resultUserAgent)
         .build();
+
+    return new HttpClient(apacheHttpClient, defaultRequestConfig);
   }
 
   public static String responseAsString(HttpResponse response) {
@@ -269,5 +281,26 @@ public final class HttpUtil {
 
   public static boolean success(StatusLine status) {
     return status != null && status.getStatusCode() >= 200 && status.getStatusCode() < 300;
+  }
+
+  /**
+   * Extracts the HttpHost from the httpUrl parameter.
+   */
+  public static HttpHost getHost(String httpUrl) throws MalformedURLException {
+    URL url = new URL(httpUrl);
+    HttpHost host;
+    if (hasPort(httpUrl)) {
+      host = new HttpHost(url.getHost(), url.getPort());
+    } else {
+      host = new HttpHost(url.getHost());
+    }
+    return host;
+  }
+
+  /**
+   * Validates if the url contains a Port section "path:port".
+   */
+  public static boolean hasPort(String url) {
+    return StringUtils.isNotBlank(url) && url.split(":").length > 2;
   }
 }

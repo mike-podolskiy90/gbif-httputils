@@ -39,6 +39,7 @@ import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
@@ -66,13 +67,11 @@ public class HttpClient {
   private static final Logger LOG = LoggerFactory.getLogger(HttpClient.class);
 
   private final CloseableHttpClient client;
+  private final RequestConfig defaultRequestConfig;
 
-  public HttpClient() {
-    this.client = HttpUtil.newMultithreadedClient(60_000, 250, 5);
-  }
-
-  public HttpClient(CloseableHttpClient client) {
+  public HttpClient(CloseableHttpClient client, RequestConfig defaultRequestConfig) {
     this.client = client;
+    this.defaultRequestConfig = defaultRequestConfig;
   }
 
   public UsernamePasswordCredentials credentials(String username, String password) {
@@ -104,16 +103,14 @@ public class HttpClient {
     LOG.info("HTTP DELETE to {}", url);
     HttpDelete delete = new HttpDelete(url);
     HttpContext authContext = buildContext(url, credentials);
-    CloseableHttpResponse response = client.execute(delete, authContext);
-    ExtendedResponse result = new ExtendedResponse(response);
-    try {
+    ExtendedResponse result;
+    try (CloseableHttpResponse response = client.execute(delete, authContext)) {
+      result = new ExtendedResponse(response);
       HttpEntity entity = response.getEntity();
       if (entity != null) {
         result.setContent(EntityUtils.toString(entity));
         EntityUtils.consume(entity);
       }
-    } finally {
-      closeQuietly(response);
     }
     return result;
   }
@@ -141,25 +138,20 @@ public class HttpClient {
 
   public StatusLine download(URL url, File downloadTo) throws IOException {
     HttpGet get = new HttpGet(url.toString());
+    final StatusLine status;
+    try (CloseableHttpResponse response = client.execute(get)) {
+      status = response.getStatusLine();
 
-    // execute
-    CloseableHttpResponse response = client.execute(get);
-    final StatusLine status = response.getStatusLine();
-    try {
       // write to file only when download succeeds
       if (HttpUtil.success(status)) {
         saveToFile(response, downloadTo);
         LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
       } else {
         LOG.error(
-            "Downloading {} to {} failed!: {}",
-            url,
-            downloadTo.getAbsolutePath(),
-            status.getStatusCode());
+            "Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
       }
-    } finally {
-      closeQuietly(response);
     }
+
     return status;
   }
 
@@ -223,9 +215,9 @@ public class HttpClient {
     }
 
     // execute
-    CloseableHttpResponse response = client.execute(get);
-    final StatusLine status = response.getStatusLine();
-    try {
+    final StatusLine status;
+    try (CloseableHttpResponse response = client.execute(get)) {
+      status = response.getStatusLine();
       if (status.getStatusCode() == HttpStatus.SC_NOT_MODIFIED) {
         LOG.debug("Content not modified since last request");
       } else if (HttpUtil.success(status)) {
@@ -239,9 +231,8 @@ public class HttpClient {
             downloadTo.getAbsolutePath(),
             status.getStatusCode());
       }
-    } finally {
-      closeQuietly(response);
     }
+
     return status;
   }
 
@@ -290,11 +281,39 @@ public class HttpClient {
    * @throws IOException in case of a problem or the connection was aborted
    */
   public ExtendedResponse get(String url) throws IOException, URISyntaxException {
-    return get(url, null, null);
+    return get(url, (RequestConfig) null, null, null);
+  }
+
+  public ExtendedResponse get(String url, String proxyUrl) throws IOException, URISyntaxException {
+    return get(url, proxyUrl, null, null);
+  }
+
+  public ExtendedResponse get(String url, RequestConfig requestConfig) throws IOException, URISyntaxException {
+    return get(url, requestConfig, null, null);
+  }
+
+  public ExtendedResponse get(String url, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+    return get(url, (String) null, credentials);
+  }
+
+  public ExtendedResponse get(String url, String proxyUrl, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+    return get(url, proxyUrl, null, credentials);
+  }
+
+  public ExtendedResponse get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+    return get(url, (RequestConfig) null, headers, credentials);
+  }
+
+  public ExtendedResponse get(String url, String proxyUrl, Map<String, String> headers, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+    HttpHost proxyHost = proxyUrl != null ? HttpUtil.getHost(proxyUrl) : null;
+    RequestConfig rc = RequestConfig.copy(defaultRequestConfig)
+        .setProxy(proxyHost)
+        .build();
+    return get(url, rc, headers, credentials);
   }
 
   public ExtendedResponse get(
-      String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
+      String url, RequestConfig requestConfig, Map<String, String> headers, UsernamePasswordCredentials credentials)
       throws IOException, URISyntaxException {
     HttpGet get = new HttpGet(url);
     // HTTP header
@@ -304,18 +323,23 @@ public class HttpClient {
             StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
       }
     }
+
+    // proxy and timeouts
+    if (requestConfig != null) {
+      get.setConfig(requestConfig);
+    }
+
     // authentication
     HttpContext authContext = buildContext(url, credentials);
-    CloseableHttpResponse response = client.execute(get, authContext);
-    ExtendedResponse result = new ExtendedResponse(response);
-    try {
+
+    ExtendedResponse result;
+    try (CloseableHttpResponse response = client.execute(get, authContext)) {
+      result = new ExtendedResponse(response);
       HttpEntity entity = response.getEntity();
       if (entity != null) {
         // Adding a default charset in case it is not found
         result.setContent(EntityUtils.toString(entity, StandardCharsets.UTF_8));
       }
-    } finally {
-      closeQuietly(response);
     }
 
     return result;
@@ -330,7 +354,6 @@ public class HttpClient {
   }
 
   public ExtendedResponse post(
-      final CloseableHttpClient client,
       String uri,
       UsernamePasswordCredentials credentials,
       HttpEntity requestEntity)
@@ -379,30 +402,14 @@ public class HttpClient {
 
   public boolean verifyHost(HttpHost host) {
     if (host != null) {
-      CloseableHttpResponse resp = null;
-      try {
-        HttpHead head = new HttpHead(host.toURI());
-        resp = client.execute(host, head);
+      HttpHead head = new HttpHead(host.toURI());
+      try (CloseableHttpResponse resp = client.execute(host, head)) {
         return true;
-
       } catch (Exception e) {
         LOG.debug("Exception thrown", e);
-
-      } finally {
-        closeQuietly(resp);
       }
     }
     return false;
-  }
-
-  private void closeQuietly(CloseableHttpResponse resp) {
-    if (resp != null) {
-      try {
-        resp.close();
-      } catch (IOException e) {
-        LOG.debug("Failed to close HTTP response", e);
-      }
-    }
   }
 
   public CloseableHttpClient getClient() {

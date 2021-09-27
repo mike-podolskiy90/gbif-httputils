@@ -33,7 +33,7 @@ public class HttpClientTest {
 
   @Test
   public void testClientRedirect() throws IOException {
-    HttpClient httpClient = new HttpClient(HttpUtil.newSinglethreadedClient(10_000));
+    HttpClient httpClient = HttpUtil.newSinglethreadedClient(10_000);
     File tmp = File.createTempFile("httputils", "test");
     tmp.deleteOnExit();
     // a redirect to http://rs.gbif.org/extension/gbif/1.0/distribution.xml
@@ -57,12 +57,10 @@ public class HttpClientTest {
   /**
    * Tests a condition get against an apache http server within GBIF.
    * If the file being tested against has been changed in the last 24h this test is expected to fail!
-   *
-   * @see <a href="http://dev.gbif.org/issues/browse/GBIFCOM-77">GBIFCOM-77</a>
    */
   @Test
   public void testConditionalGet() throws IOException {
-    HttpClient httpClient = new HttpClient();
+    HttpClient httpClient = HttpUtil.newDefaultMultithreadedClient();
     // We know for sure it has changed since this date
     Date last = DateUtils.parseDate("Wed, 03 Aug 2009 22:37:31 GMT");
     File tmp = File.createTempFile("vocab", ".xml");
@@ -82,7 +80,7 @@ public class HttpClientTest {
   @Test
   @Disabled("Manual test")
   public void testIptConditionalGet() throws IOException {
-    HttpClient httpClient = new HttpClient();
+    HttpClient httpClient = HttpUtil.newDefaultMultithreadedClient();
 
     Date beforeChange = DateUtils.parseDate("Wed, 03 Aug 2009 22:37:31 GMT");
     Date afterChange = DateUtils.parseDate("Wed, 15 May 2019 14:47:25 GMT");
@@ -98,7 +96,7 @@ public class HttpClientTest {
 
   @Test
   public void testMultithreadedCommonsLogDependency() throws Exception {
-    HttpClient httpClient = new HttpClient(HttpUtil.newMultithreadedClient(10_000, 10_000, 10));
+    HttpClient httpClient = HttpUtil.newMultithreadedClient(10_000, 10_000, 10);
     httpClient.get("http://rs.gbif.org/vocabulary/gbif/rank.xml");
     httpClient.get("https://rs.gbif.org/vocabulary/gbif/rank.xml");
   }
