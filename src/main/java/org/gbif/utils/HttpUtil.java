@@ -235,14 +235,15 @@ public final class HttpUtil {
       builder.addInterceptorFirst(firstInterceptor);
     }
 
-    CloseableHttpClient apacheHttpClient = builder
-        // Retain compressed content, e.g. a tar.gz archive we download
-        .disableContentCompression()
-        .setRedirectStrategy(redirectStrategy)
-        .setDefaultRequestConfig(defaultRequestConfig)
-        .setConnectionManager(connectionManager)
-        .setUserAgent(resultUserAgent)
-        .build();
+    CloseableHttpClient apacheHttpClient =
+        builder
+            // Retain compressed content, e.g. a tar.gz archive we download
+            .disableContentCompression()
+            .setRedirectStrategy(redirectStrategy)
+            .setDefaultRequestConfig(defaultRequestConfig)
+            .setConnectionManager(connectionManager)
+            .setUserAgent(resultUserAgent)
+            .build();
 
     return new HttpClient(apacheHttpClient, defaultRequestConfig);
   }

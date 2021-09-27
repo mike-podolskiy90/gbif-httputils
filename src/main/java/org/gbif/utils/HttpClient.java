@@ -148,7 +148,10 @@ public class HttpClient {
         LOG.debug("Successfully downloaded {} to {}", url, downloadTo.getAbsolutePath());
       } else {
         LOG.error(
-            "Downloading {} to {} failed!: {}", url, downloadTo.getAbsolutePath(), status.getStatusCode());
+            "Downloading {} to {} failed!: {}",
+            url,
+            downloadTo.getAbsolutePath(),
+            status.getStatusCode());
       }
     }
 
@@ -288,32 +291,43 @@ public class HttpClient {
     return get(url, proxyUrl, null, null);
   }
 
-  public ExtendedResponse get(String url, RequestConfig requestConfig) throws IOException, URISyntaxException {
+  public ExtendedResponse get(String url, RequestConfig requestConfig)
+      throws IOException, URISyntaxException {
     return get(url, requestConfig, null, null);
   }
 
-  public ExtendedResponse get(String url, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public ExtendedResponse get(String url, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     return get(url, (String) null, credentials);
   }
 
-  public ExtendedResponse get(String url, String proxyUrl, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public ExtendedResponse get(String url, String proxyUrl, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     return get(url, proxyUrl, null, credentials);
   }
 
-  public ExtendedResponse get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public ExtendedResponse get(
+      String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     return get(url, (RequestConfig) null, headers, credentials);
   }
 
-  public ExtendedResponse get(String url, String proxyUrl, Map<String, String> headers, UsernamePasswordCredentials credentials) throws IOException, URISyntaxException {
+  public ExtendedResponse get(
+      String url,
+      String proxyUrl,
+      Map<String, String> headers,
+      UsernamePasswordCredentials credentials)
+      throws IOException, URISyntaxException {
     HttpHost proxyHost = proxyUrl != null ? HttpUtil.getHost(proxyUrl) : null;
-    RequestConfig rc = RequestConfig.copy(defaultRequestConfig)
-        .setProxy(proxyHost)
-        .build();
+    RequestConfig rc = RequestConfig.copy(defaultRequestConfig).setProxy(proxyHost).build();
     return get(url, rc, headers, credentials);
   }
 
   public ExtendedResponse get(
-      String url, RequestConfig requestConfig, Map<String, String> headers, UsernamePasswordCredentials credentials)
+      String url,
+      RequestConfig requestConfig,
+      Map<String, String> headers,
+      UsernamePasswordCredentials credentials)
       throws IOException, URISyntaxException {
     HttpGet get = new HttpGet(url);
     // HTTP header
@@ -354,9 +368,7 @@ public class HttpClient {
   }
 
   public ExtendedResponse post(
-      String uri,
-      UsernamePasswordCredentials credentials,
-      HttpEntity requestEntity)
+      String uri, UsernamePasswordCredentials credentials, HttpEntity requestEntity)
       throws IOException, URISyntaxException {
     return post(uri, null, credentials, requestEntity);
   }
