@@ -68,6 +68,8 @@ public class HttpClient {
 
   private final CloseableHttpClient client;
   private final RequestConfig defaultRequestConfig;
+  private HttpHost proxy;
+  private RequestConfig customRequestConfig;
 
   public HttpClient(CloseableHttpClient client, RequestConfig defaultRequestConfig) {
     this.client = client;
@@ -102,6 +104,11 @@ public class HttpClient {
       throws IOException, URISyntaxException {
     LOG.info("HTTP DELETE to {}", url);
     HttpDelete delete = new HttpDelete(url);
+
+    if (customRequestConfig != null) {
+      delete.setConfig(customRequestConfig);
+    }
+
     HttpContext authContext = buildContext(url, credentials);
     ExtendedResponse result;
     try (CloseableHttpResponse response = client.execute(delete, authContext)) {
@@ -138,6 +145,11 @@ public class HttpClient {
 
   public StatusLine download(URL url, File downloadTo) throws IOException {
     HttpGet get = new HttpGet(url.toString());
+
+    if (customRequestConfig != null) {
+      get.setConfig(customRequestConfig);
+    }
+
     final StatusLine status;
     try (CloseableHttpResponse response = client.execute(get)) {
       status = response.getStatusLine();
@@ -207,8 +219,11 @@ public class HttpClient {
    */
   public StatusLine downloadIfModifiedSince(
       final URL url, final Date lastModified, final File downloadTo) throws IOException {
-
     HttpGet get = new HttpGet(url.toString());
+
+    if (customRequestConfig != null) {
+      get.setConfig(customRequestConfig);
+    }
 
     // prepare conditional GET request headers
     if (lastModified != null) {
@@ -284,11 +299,7 @@ public class HttpClient {
    * @throws IOException in case of a problem or the connection was aborted
    */
   public ExtendedResponse get(String url) throws IOException, URISyntaxException {
-    return get(url, (RequestConfig) null, null, null);
-  }
-
-  public ExtendedResponse get(String url, String proxyUrl) throws IOException, URISyntaxException {
-    return get(url, proxyUrl, null, null);
+    return get(url, customRequestConfig, null, null);
   }
 
   public ExtendedResponse get(String url, RequestConfig requestConfig)
@@ -298,29 +309,12 @@ public class HttpClient {
 
   public ExtendedResponse get(String url, UsernamePasswordCredentials credentials)
       throws IOException, URISyntaxException {
-    return get(url, (String) null, credentials);
+    return get(url, customRequestConfig, null, credentials);
   }
 
-  public ExtendedResponse get(String url, String proxyUrl, UsernamePasswordCredentials credentials)
+  public ExtendedResponse get(String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
       throws IOException, URISyntaxException {
-    return get(url, proxyUrl, null, credentials);
-  }
-
-  public ExtendedResponse get(
-      String url, Map<String, String> headers, UsernamePasswordCredentials credentials)
-      throws IOException, URISyntaxException {
-    return get(url, (RequestConfig) null, headers, credentials);
-  }
-
-  public ExtendedResponse get(
-      String url,
-      String proxyUrl,
-      Map<String, String> headers,
-      UsernamePasswordCredentials credentials)
-      throws IOException, URISyntaxException {
-    HttpHost proxyHost = proxyUrl != null ? HttpUtil.getHost(proxyUrl) : null;
-    RequestConfig rc = RequestConfig.copy(defaultRequestConfig).setProxy(proxyHost).build();
-    return get(url, rc, headers, credentials);
+    return get(url, customRequestConfig, headers, credentials);
   }
 
   public ExtendedResponse get(
@@ -386,15 +380,25 @@ public class HttpClient {
       HttpEntity requestEntity)
       throws IOException, URISyntaxException {
     HttpPost post = new HttpPost(uri);
+
+    // headers
     if (headers != null) {
       for (Map.Entry<String, String> header : headers.entrySet()) {
         post.addHeader(
             StringUtils.trimToEmpty(header.getKey()), StringUtils.trimToEmpty(header.getValue()));
       }
     }
+
+    // request entity
     if (requestEntity != null) {
       post.setEntity(requestEntity);
     }
+
+    // custom configuration (proxy etc.)
+    if (customRequestConfig != null) {
+      post.setConfig(customRequestConfig);
+    }
+
     // authentication
     HttpContext authContext = buildContext(uri, credentials);
     HttpResponse response = client.execute(post, authContext);
@@ -415,6 +419,11 @@ public class HttpClient {
   public boolean verifyHost(HttpHost host) {
     if (host != null) {
       HttpHead head = new HttpHead(host.toURI());
+
+      if (customRequestConfig != null) {
+        head.setConfig(customRequestConfig);
+      }
+
       try (CloseableHttpResponse resp = client.execute(host, head)) {
         return true;
       } catch (Exception e) {
@@ -426,5 +435,30 @@ public class HttpClient {
 
   public CloseableHttpClient getClient() {
     return client;
+  }
+
+  public HttpHost getProxy() {
+    return proxy;
+  }
+
+  public void setProxy(String proxy) throws IOException {
+    setProxy(proxy != null ? HttpUtil.getHost(proxy) : null);
+  }
+
+  public void setProxy(HttpHost proxy) {
+    if (proxy != null) {
+      this.proxy = proxy;
+      this.customRequestConfig = RequestConfig.copy(defaultRequestConfig)
+          .setProxy(this.proxy)
+          .build();
+    } else {
+      this.proxy = null;
+      this.customRequestConfig = null;
+    }
+  }
+
+  public void removeProxy() {
+    this.proxy = null;
+    this.customRequestConfig = null;
   }
 }
